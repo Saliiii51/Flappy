@@ -25,6 +25,15 @@ func _ready() -> void:
 	online_lobby.visible = false
 	if name_modal:
 		name_modal.visible = false
+
+	var fade := ColorRect.new()
+	fade.color = Color(0, 0, 0, 1)
+	fade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(fade)
+	var fade_tween = create_tween()
+	fade_tween.tween_property(fade, "color:a", 0.0, 0.35)
+	fade_tween.tween_callback(fade.queue_free)
 	
 	_update_player_name_ui()
 	if not NetworkManager.has_custom_name():

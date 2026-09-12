@@ -14,6 +14,7 @@ signal opponent_score_updated(score: int)
 signal rematch_requested(sync_seed: int)
 signal opponent_ready()
 signal room_error(message: String)
+signal ranks_received(entries: Array, total: int)
 
 const WS_PORT: int = 8910
 const PROFILE_SAVE_PATH: String = "user://player_profile.cfg"
@@ -257,6 +258,23 @@ func send_rematch(sync_seed: int) -> void:
 		"seed": sync_seed
 	})
 
+func submit_rank_score(score: int) -> void:
+	if score <= 0:
+		return
+	send_json({
+		"type": "submit_score",
+		"name": get_player_name(),
+		"score": score
+	})
+
+func request_top_ranks(limit: int = 10) -> void:
+	if not ws or ws.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		connect_to_server()
+	send_json({
+		"type": "get_top",
+		"limit": limit
+	})
+
 func send_json(data: Dictionary) -> void:
 	if ws and ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
 		ws.send_text(JSON.stringify(data))
@@ -314,6 +332,15 @@ func _handle_server_message(raw_msg: String) -> void:
 			
 		"opponent_left":
 			player_disconnected.emit(2)
+
+		"rank_ok":
+			pass # Skor kaydedildi, ayrıca işlem gerekmiyor
+
+		"top_ranks":
+			var entries = json.get("entries", [])
+			var total = int(json.get("total", 0))
+			if typeof(entries) == TYPE_ARRAY:
+				ranks_received.emit(entries, total)
 			
 		"error":
 			var err_msg = str(json.get("message", "Bilinmeyen hata"))

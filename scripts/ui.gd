@@ -14,6 +14,11 @@ var mute_btn: Button
 var achieve_menu_btn: Button
 var double_score_indicator: Label
 var multiplayer_btn: Button
+var ranks_btn: Button
+
+var ranks_modal: Control
+var ranks_list: VBoxContainer
+var ranks_title_label: Label
 
 var score_container: HBoxContainer
 var score_label: Label
@@ -94,7 +99,13 @@ func _ready() -> void:
 		profile_name_input.text_submitted.connect(func(_t): save_and_close_profile())
 	
 	_update_profile_button_text()
-	
+
+	_build_ranks_button()
+	_build_ranks_modal()
+	NetworkManager.ranks_received.connect(_on_ranks_received)
+	_add_menu_juice()
+	_fade_in()
+
 	show_message()
 	update_score(0)
 	if game_over_panel:
@@ -387,6 +398,8 @@ func show_message() -> void:
 		skin_selector.visible = true
 	if multiplayer_btn:
 		multiplayer_btn.visible = true
+	if ranks_btn:
+		ranks_btn.visible = true
 	if score_container:
 		score_container.visible = false
 	if score_label:
@@ -409,8 +422,12 @@ func hide_message() -> void:
 		skin_selector.visible = false
 	if multiplayer_btn:
 		multiplayer_btn.visible = false
+	if ranks_btn:
+		ranks_btn.visible = false
 	if achievements_modal:
 		achievements_modal.visible = false
+	if ranks_modal:
+		ranks_modal.visible = false
 	if profile_btn:
 		profile_btn.visible = false
 	if profile_modal:
@@ -573,6 +590,13 @@ func show_game_over(final_score: int, high_score: int, is_new_record: bool = fal
 		var tween = create_tween()
 		if tween:
 			tween.tween_property(game_over_panel, "modulate:a", 1.0, 0.35)
+		var card = game_over_panel.get_node_or_null("Card") as Control
+		if card:
+			card.pivot_offset = card.size * 0.5
+			card.scale = Vector2(0.7, 0.7)
+			var pop = create_tween()
+			if pop:
+				pop.tween_property(card, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 func _on_restart_btn_pressed() -> void:
 	restart_requested.emit()
@@ -580,3 +604,215 @@ func _on_restart_btn_pressed() -> void:
 func _on_game_over_panel_gui_input(event: InputEvent) -> void:
 	if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed):
 		restart_requested.emit()
+
+# --- GLOBAL SIRALAMA (liderlik tablosu) ---
+func _build_ranks_button() -> void:
+	_init_node_references()
+	if ranks_btn or multiplayer_btn == null:
+		return
+	var parent_ctrl = multiplayer_btn.get_parent()
+	if parent_ctrl == null:
+		return
+	ranks_btn = Button.new()
+	ranks_btn.text = "🏆 GLOBAL SIRALAMA"
+	ranks_btn.add_theme_font_size_override("font_size", 11)
+	ranks_btn.focus_mode = Control.FOCUS_NONE
+	ranks_btn.offset_left = 64.0
+	ranks_btn.offset_top = 421.0
+	ranks_btn.offset_right = 224.0
+	ranks_btn.offset_bottom = 449.0
+	parent_ctrl.add_child(ranks_btn)
+	ranks_btn.pressed.connect(_on_ranks_pressed)
+
+func _build_ranks_modal() -> void:
+	if ranks_modal:
+		return
+	ranks_modal = Control.new()
+	ranks_modal.set_anchors_preset(Control.PRESET_FULL_RECT)
+	ranks_modal.visible = false
+	add_child(ranks_modal)
+
+	var dim := ColorRect.new()
+	dim.color = Color(0.0, 0.0, 0.0, 0.65)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	ranks_modal.add_child(dim)
+	dim.gui_input.connect(func(event: InputEvent):
+		if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed):
+			ranks_modal.visible = false
+	)
+
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.set_corner_radius_all(8)
+	style.bg_color = Color(0.16, 0.14, 0.22, 0.97)
+	style.border_color = Color(1.0, 0.84, 0.15, 0.95)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	panel.add_theme_stylebox_override("panel", style)
+	panel.offset_left = 28.0
+	panel.offset_top = 120.0
+	panel.offset_right = 260.0
+	panel.offset_bottom = 395.0
+	ranks_modal.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 10)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_right", 10)
+	margin.add_theme_constant_override("margin_bottom", 10)
+	panel.add_child(margin)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	margin.add_child(vbox)
+
+	ranks_title_label = Label.new()
+	ranks_title_label.text = "🏆 GLOBAL SIRALAMA"
+	ranks_title_label.add_theme_font_size_override("font_size", 14)
+	ranks_title_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+	ranks_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(ranks_title_label)
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 175)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(scroll)
+
+	ranks_list = VBoxContainer.new()
+	ranks_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ranks_list.add_theme_constant_override("separation", 3)
+	scroll.add_child(ranks_list)
+
+	var close_btn := Button.new()
+	close_btn.text = "KAPAT"
+	close_btn.focus_mode = Control.FOCUS_NONE
+	close_btn.pressed.connect(func(): ranks_modal.visible = false)
+	vbox.add_child(close_btn)
+
+func _on_ranks_pressed() -> void:
+	_init_node_references()
+	if ranks_modal == null:
+		return
+	ranks_modal.visible = true
+	if NetworkManager.is_connected_to_server:
+		_show_ranks_message("⏳ Yükleniyor...")
+		NetworkManager.request_top_ranks(10)
+	else:
+		_show_ranks_message("⏳ Sunucuya bağlanılıyor...\nBağlanınca tekrar dokun.")
+		NetworkManager.connect_to_server()
+
+func _show_ranks_message(text: String) -> void:
+	if ranks_list == null:
+		return
+	for child in ranks_list.get_children():
+		child.queue_free()
+	if ranks_title_label:
+		ranks_title_label.text = "🏆 GLOBAL SIRALAMA"
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.add_theme_font_size_override("font_size", 11)
+	lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	ranks_list.add_child(lbl)
+
+func _on_ranks_received(entries: Array, total: int) -> void:
+	if ranks_list == null or ranks_modal == null:
+		return
+	for child in ranks_list.get_children():
+		child.queue_free()
+	if ranks_title_label:
+		ranks_title_label.text = "🏆 GLOBAL SIRALAMA (%d oyuncu)" % total
+	if entries.is_empty():
+		_show_ranks_message("Henüz skor yok — ilk sen ol! 🎮")
+		return
+	var my_name = NetworkManager.get_player_name()
+	var idx = 1
+	for e in entries:
+		if not (e is Dictionary):
+			continue
+		var pname = str(e.get("name", "?"))
+		var best = int(e.get("best", 0))
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		var medal_text := "%d." % idx
+		if idx == 1:
+			medal_text = "🥇"
+		elif idx == 2:
+			medal_text = "🥈"
+		elif idx == 3:
+			medal_text = "🥉"
+		var rank_lbl := Label.new()
+		rank_lbl.text = medal_text
+		rank_lbl.custom_minimum_size = Vector2(30, 0)
+		rank_lbl.add_theme_font_size_override("font_size", 12)
+		row.add_child(rank_lbl)
+		var name_lbl := Label.new()
+		name_lbl.text = pname
+		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_lbl.add_theme_font_size_override("font_size", 12)
+		name_lbl.clip_text = true
+		row.add_child(name_lbl)
+		var score_lbl := Label.new()
+		score_lbl.text = str(best)
+		score_lbl.add_theme_font_size_override("font_size", 12)
+		row.add_child(score_lbl)
+		if pname == my_name:
+			rank_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+			name_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+			score_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+		ranks_list.add_child(row)
+		idx += 1
+
+# --- GÖRSEL POLISH ---
+func spawn_score_popup(world_pos: Vector2, text: String, color: Color = Color.WHITE) -> void:
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.add_theme_font_size_override("font_size", 15)
+	lbl.add_theme_color_override("font_color", color)
+	lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	lbl.add_theme_constant_override("outline_size", 4)
+	add_child(lbl)
+	lbl.position = Vector2(clampf(world_pos.x - 8.0, 8.0, 235.0), clampf(world_pos.y - 46.0, 40.0, 420.0))
+	lbl.pivot_offset = Vector2(12, 10)
+	lbl.scale = Vector2(0.6, 0.6)
+	var tween = create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(lbl, "scale", Vector2(1.1, 1.1), 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(lbl, "position:y", lbl.position.y - 34.0, 0.55)
+	tween.tween_property(lbl, "modulate:a", 0.0, 0.4).set_delay(0.2)
+	tween.chain().tween_callback(lbl.queue_free)
+
+func _add_menu_juice() -> void:
+	_init_node_references()
+	var buttons: Array = [prev_skin_btn, next_skin_btn, mute_btn, achieve_menu_btn,
+		multiplayer_btn, profile_btn, restart_btn, ranks_btn]
+	for b in buttons:
+		if b is Button:
+			_add_button_juice(b as Button)
+
+func _add_button_juice(b: Button) -> void:
+	b.call_deferred("set_pivot_offset", b.size * 0.5)
+	b.mouse_entered.connect(func(): b.modulate = Color(1.15, 1.15, 1.15))
+	b.mouse_exited.connect(func(): b.modulate = Color.WHITE)
+	b.button_down.connect(func():
+		b.pivot_offset = b.size * 0.5
+		var t = create_tween()
+		t.tween_property(b, "scale", Vector2(0.9, 0.9), 0.07)
+	)
+	b.button_up.connect(func():
+		var t = create_tween()
+		t.tween_property(b, "scale", Vector2.ONE, 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	)
+
+func _fade_in() -> void:
+	var fade := ColorRect.new()
+	fade.color = Color(0, 0, 0, 1)
+	fade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(fade)
+	var tween = create_tween()
+	tween.tween_property(fade, "color:a", 0.0, 0.4)
+	tween.tween_callback(fade.queue_free)

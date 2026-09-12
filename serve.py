@@ -69,6 +69,38 @@ class ThreadedHTTPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     allow_reuse_address = True
     daemon_threads = True
 
+# --- GLOBAL LEADERBOARD (kalıcı skor tablosu) ---
+# ranks.json: { "OyuncuAdı": {"best": int, "games": int} }
+RANKS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ranks.json")
+ranks = {}
+last_submit_at = {}  # ws -> timestamp (spam koruması)
+
+def load_ranks():
+    global ranks
+    try:
+        if os.path.exists(RANKS_PATH):
+            with open(RANKS_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                ranks = data
+                print(f"[Ranks] 🏆 {len(ranks)} oyuncu yüklendi.")
+    except Exception as e:
+        print(f"[Ranks] yüklenemedi: {e}")
+
+def save_ranks():
+    try:
+        with open(RANKS_PATH, "w", encoding="utf-8") as f:
+            json.dump(ranks, f, ensure_ascii=False)
+    except Exception as e:
+        print(f"[Ranks] kaydedilemedi: {e}")
+
+def get_rank_of(name: str) -> int:
+    ordered = sorted(ranks.items(), key=lambda kv: kv[1].get("best", 0), reverse=True)
+    for i, (n, _v) in enumerate(ordered, start=1):
+        if n == name:
+            return i
+    return -1
+
 # --- WEBSOCKET ROOM RELAY SERVER ---
 # rooms: code -> {"host": ws, "guest": ws, "seed": int}
 rooms = {}
@@ -198,6 +230,54 @@ async def handle_ws(websocket):
                             except Exception:
                                 pass
 
+            elif msg_type == "submit_score":
+                # Global sıralama için tek oyunculu skor bildirimi
+                import time as _time
+                now = _time.monotonic()
+                if now - last_submit_at.get(websocket, 0.0) < 5.0:
+                    continue  # spam koruması: 5 sn'de bir
+                last_submit_at[websocket] = now
+                try:
+                    name = str(data.get("name", "")).strip()[:12] or "Oyuncu"
+                    score = int(data.get("score", 0))
+                except Exception:
+                    continue
+                score = max(0, min(score, 9999))
+                entry = ranks.get(name, {"best": 0, "games": 0})
+                entry["games"] = int(entry.get("games", 0)) + 1
+                if score > int(entry.get("best", 0)):
+                    entry["best"] = score
+                ranks[name] = entry
+                save_ranks()
+                try:
+                    await websocket.send(json.dumps({
+                        "type": "rank_ok",
+                        "best": entry["best"],
+                        "rank": get_rank_of(name)
+                    }))
+                except Exception:
+                    pass
+
+            elif msg_type == "get_top":
+                try:
+                    limit = int(data.get("limit", 10))
+                except Exception:
+                    limit = 10
+                limit = max(5, min(limit, 50))
+                ordered = sorted(ranks.items(), key=lambda kv: kv[1].get("best", 0), reverse=True)
+                entries = [
+                    {"name": n, "best": int(v.get("best", 0)), "games": int(v.get("games", 0))}
+                    for n, v in ordered[:limit]
+                ]
+                try:
+                    await websocket.send(json.dumps({
+                        "type": "top_ranks",
+                        "entries": entries,
+                        "total": len(ranks)
+                    }))
+                except Exception:
+                    pass
+
             elif msg_type in ("sync", "flap", "died", "score_update"):
                 # Fast relay to the opponent
                 info = client_rooms.get(websocket)
@@ -214,6 +294,7 @@ async def handle_ws(websocket):
         pass
     finally:
         info = client_rooms.pop(websocket, None)
+        last_submit_at.pop(websocket, None)
         if info:
             code = info["code"]
             if code in rooms:
@@ -244,6 +325,7 @@ def start_http():
         httpd.serve_forever()
 
 async def main():
+    load_ranks()
     local_ip = get_local_ip()
     print("=" * 65)
     print(" 🎮 FLAPPY BIRD ODA KODLU MULTIPLAYER SUNUCUSU HAZIR!")

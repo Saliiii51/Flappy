@@ -183,6 +183,7 @@ func _on_score_awarded() -> void:
 	var points_to_add = 2 if is_double else 1
 	score += points_to_add
 	ui.update_score(score)
+	ui.spawn_score_popup(bird.global_position, "+%d" % points_to_add)
 	audio_manager.play_point()
 	
 	_check_score_events()
@@ -331,7 +332,10 @@ func _on_bird_died() -> void:
 		high_score = score
 		is_new_record = true
 		save_save_data()
-	
+
+	# Global sıralamaya skoru gönder (bağlı değilsek sessizce atlanır)
+	NetworkManager.submit_rank_score(score)
+
 	ui.show_game_over(score, high_score, is_new_record)
 	
 	get_tree().create_timer(0.4).timeout.connect(func():

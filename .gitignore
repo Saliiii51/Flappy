@@ -1,6 +1,9 @@
 # Godot 4+ editor cache (yeniden üretilir, repoya girmez)
 .godot/
 
+# Backend yerelde ürettiği skor tablosu (prod'da sunucuda oluşur)
+ranks.json
+
 # Python
 __pycache__/
 *.py[cod]
