@@ -154,16 +154,12 @@ func _start_weather(w: Weather) -> void:
 	weather_elapsed = 0.0
 	match w:
 		Weather.TAILWIND:
-			wind_pipe_bonus = 45.0
-			pipe_spawner.wind_speed_bonus = wind_pipe_bonus
-			ground.speed += wind_pipe_bonus
+			_set_wind_bonus(45.0)
 			wind_particles.direction = Vector2(-1, 0)
 			wind_particles.emitting = true
 			ui.show_weather_banner("💨 ARKA RÜZGAR! Borular hızlı!")
 		Weather.HEADWIND:
-			wind_pipe_bonus = -45.0
-			pipe_spawner.wind_speed_bonus = wind_pipe_bonus
-			ground.speed = maxf(ground.speed + wind_pipe_bonus, 60.0)
+			_set_wind_bonus(-45.0)
 			wind_particles.direction = Vector2(1, 0)
 			wind_particles.emitting = true
 			ui.show_weather_banner("💨 KARŞI RÜZGAR! Borular yavaş!")
@@ -173,18 +169,31 @@ func _start_weather(w: Weather) -> void:
 			ui.show_weather_banner("🌫️ SİS! Önünü gör!")
 	audio_manager.play_swoosh()
 
+func _set_wind_bonus(value: float) -> void:
+	# Rüzgar değişince SADECE yeni borular değil, ekrandaki tüm borular
+	# aynı hıza geçer — yoksa hızlı boru yavaşı yakalayıp üst üste biner.
+	var delta = value - wind_pipe_bonus
+	wind_pipe_bonus = value
+	if pipe_spawner:
+		pipe_spawner.wind_speed_bonus = value
+	if absf(delta) > 0.001 and pipes_container:
+		for child in pipes_container.get_children():
+			if child is PipePair:
+				child.speed = maxf(child.speed + delta, 60.0)
+			elif child is PowerUp:
+				child.speed = maxf(child.speed + delta, 40.0)
+	if ground:
+		ground.speed = maxf(120.0 + minf(float(score) * 0.8, 35.0) + value, 60.0)
+
 func _clear_weather(survived: bool) -> void:
 	if weather == Weather.NONE:
 		return
 	var was_wind = (weather == Weather.TAILWIND or weather == Weather.HEADWIND)
 	var was_fog = (weather == Weather.FOG)
 	weather = Weather.NONE
-	wind_pipe_bonus = 0.0
+	_set_wind_bonus(0.0)
 	if pipe_spawner:
-		pipe_spawner.wind_speed_bonus = 0.0
 		pipe_spawner.set_game_state_data(score, is_night)
-	if ground:
-		ground.speed = 120.0 + minf(float(score) * 0.8, 35.0)
 	if wind_particles:
 		wind_particles.emitting = false
 	if fog_rect:
