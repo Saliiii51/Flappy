@@ -110,20 +110,6 @@ body {
 		</div>
 
 		<script>
-			// Ensure AudioContext unlocks smoothly on mobile touch/click
-			(function() {
-				function unlockAudio() {
-					var ctx = window.GodotAudio && window.GodotAudio.ctx;
-					if (ctx && ctx.state === 'suspended') {
-						ctx.resume();
-					}
-				}
-				['touchstart', 'touchend', 'pointerdown', 'click', 'keydown'].forEach(function(evt) {
-					window.addEventListener(evt, unlockAudio, { passive: true });
-				});
-			})();
-		</script>
-		<script>
 			// İnternet yayını: backend WS adresini buraya yaz.
 			// Örn: window.FLAPPY_WS_URL = "wss://flappy-ws.onrender.com";
 			// Boş bırakılırsa oyun aynı hostun 8910 portuna bakmaya çalışır (LAN).
@@ -131,7 +117,7 @@ body {
 		</script>
 		<script src="Flappy Bird.js"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"Flappy Bird","experimentalVK":false,"fileSizes":{"Flappy Bird.pck":5119612,"Flappy Bird.wasm":37902138},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"Flappy Bird","experimentalVK":false,"fileSizes":{"Flappy Bird.pck":5120092,"Flappy Bird.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
