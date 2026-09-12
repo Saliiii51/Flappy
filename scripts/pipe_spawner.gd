@@ -14,6 +14,7 @@ signal powerup_spawned(powerup: PowerUp)
 var is_spawning: bool = false
 var current_score: int = 0
 var is_night: bool = false
+var wind_speed_bonus: float = 0.0
 
 var powerup_scene: PackedScene = preload("res://scenes/powerup.tscn")
 
@@ -40,9 +41,9 @@ func _on_spawn_timer_timeout() -> void:
 	var random_y = randf_range(min_gap_y, max_gap_y)
 	pipe.position = Vector2(340.0, random_y)
 	
-	# Difficulty speed scaling
-	var current_speed = 120.0 + minf(float(current_score) * 0.8, 35.0)
-	pipe.speed = current_speed
+	# Difficulty speed scaling (+ rüzgar bonusu)
+	var current_speed = 120.0 + minf(float(current_score) * 0.8, 35.0) + wind_speed_bonus
+	pipe.speed = maxf(current_speed, 60.0)
 	
 	# Set theme (green / red)
 	pipe.set_red_theme(is_night)

@@ -40,6 +40,16 @@ const ACHIEVEMENTS: Dictionary = {
 		"title": "Canavar Avcısı",
 		"desc": "Mecha-Pipe Boss'unu mağlup ettin!",
 		"icon": "👹"
+	},
+	"storm_rider": {
+		"title": "Fırtına Binicisi",
+		"desc": "Rüzgarı atlatıp uçmaya devam ettin!",
+		"icon": "🌪️"
+	},
+	"fog_navigator": {
+		"title": "Sis Gezgini",
+		"desc": "Siste yolunu buldun!",
+		"icon": "🌫️"
 	}
 }
 

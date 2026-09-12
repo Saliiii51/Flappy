@@ -1,6 +1,7 @@
 extends Node2D
 
 enum GameState { READY, PLAYING, GAME_OVER }
+enum Weather { NONE, TAILWIND, HEADWIND, FOG }
 
 const SAVE_PATH: String = "user://flappy_save.cfg"
 
@@ -36,8 +37,20 @@ var boss_active: bool = false
 var current_boss: Node2D = null
 var boss_level: int = 0
 
+var weather: Weather = Weather.NONE
+var weather_time_left: float = 0.0
+var weather_elapsed: float = 0.0
+var next_weather_score: int = 8
+var wind_pipe_bonus: float = 0.0
+var bird_base_x: float = 70.0
+var wind_particles: CPUParticles2D
+var fog_rect: ColorRect
+
+const WEATHER_DURATION: float = 6.0
+
 func _ready() -> void:
 	load_save_data()
+	_build_weather_nodes()
 	
 	if bird:
 		if not bird.died.is_connected(_on_bird_died):
@@ -76,6 +89,16 @@ func _process(delta: float) -> void:
 			lightning_timer = randf_range(11.0, 19.0)
 			trigger_lightning()
 
+	if state == GameState.PLAYING and weather != Weather.NONE:
+		weather_time_left -= delta
+		weather_elapsed += delta
+		# Rüzgarda kuş hafifçe yalpalar
+		if bird and (weather == Weather.TAILWIND or weather == Weather.HEADWIND):
+			var dir = 1.0 if weather == Weather.TAILWIND else -1.0
+			bird.position.x = bird_base_x + sin(weather_elapsed * 7.0) * 6.0 * dir
+		if weather_time_left <= 0.0:
+			_clear_weather(true)
+
 func trigger_lightning() -> void:
 	if not lightning_flash:
 		return
@@ -84,6 +107,96 @@ func trigger_lightning() -> void:
 	tween.tween_property(lightning_flash, "color:a", 0.15, 0.05)
 	tween.tween_property(lightning_flash, "color:a", 0.65, 0.05)
 	tween.tween_property(lightning_flash, "color:a", 0.0, 0.15)
+
+# --- HAVA OLAYLARI (rüzgar / sis) ---
+func _build_weather_nodes() -> void:
+	wind_particles = CPUParticles2D.new()
+	wind_particles.amount = 28
+	wind_particles.lifetime = 0.9
+	wind_particles.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	wind_particles.emission_rect_extents = Vector2(150, 260)
+	wind_particles.position = Vector2(144, 256)
+	wind_particles.direction = Vector2(-1, 0)
+	wind_particles.spread = 8.0
+	wind_particles.gravity = Vector2.ZERO
+	wind_particles.initial_velocity_min = 260.0
+	wind_particles.initial_velocity_max = 340.0
+	wind_particles.color = Color(1, 1, 1, 0.35)
+	wind_particles.z_index = 4
+	wind_particles.emitting = false
+	add_child(wind_particles)
+
+	fog_rect = ColorRect.new()
+	fog_rect.color = Color(0.75, 0.82, 0.9, 0.0)
+	fog_rect.offset_right = 288.0
+	fog_rect.offset_bottom = 512.0
+	fog_rect.z_index = 15
+	fog_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(fog_rect)
+
+	if bird:
+		bird_base_x = bird.position.x
+
+func _maybe_trigger_weather() -> void:
+	if state != GameState.PLAYING or boss_active or weather != Weather.NONE:
+		return
+	var roll = randf()
+	if roll < 0.35:
+		_start_weather(Weather.TAILWIND)
+	elif roll < 0.65:
+		_start_weather(Weather.HEADWIND)
+	else:
+		_start_weather(Weather.FOG)
+
+func _start_weather(w: Weather) -> void:
+	weather = w
+	weather_time_left = WEATHER_DURATION
+	weather_elapsed = 0.0
+	match w:
+		Weather.TAILWIND:
+			wind_pipe_bonus = 45.0
+			pipe_spawner.wind_speed_bonus = wind_pipe_bonus
+			ground.speed += wind_pipe_bonus
+			wind_particles.direction = Vector2(-1, 0)
+			wind_particles.emitting = true
+			ui.show_weather_banner("💨 ARKA RÜZGAR! Borular hızlı!")
+		Weather.HEADWIND:
+			wind_pipe_bonus = -45.0
+			pipe_spawner.wind_speed_bonus = wind_pipe_bonus
+			ground.speed = maxf(ground.speed + wind_pipe_bonus, 60.0)
+			wind_particles.direction = Vector2(1, 0)
+			wind_particles.emitting = true
+			ui.show_weather_banner("💨 KARŞI RÜZGAR! Borular yavaş!")
+		Weather.FOG:
+			var tween = create_tween()
+			tween.tween_property(fog_rect, "color:a", 0.5, 0.8)
+			ui.show_weather_banner("🌫️ SİS! Önünü gör!")
+	audio_manager.play_swoosh()
+
+func _clear_weather(survived: bool) -> void:
+	if weather == Weather.NONE:
+		return
+	var was_wind = (weather == Weather.TAILWIND or weather == Weather.HEADWIND)
+	var was_fog = (weather == Weather.FOG)
+	weather = Weather.NONE
+	wind_pipe_bonus = 0.0
+	if pipe_spawner:
+		pipe_spawner.wind_speed_bonus = 0.0
+		pipe_spawner.set_game_state_data(score, is_night)
+	if ground:
+		ground.speed = 120.0 + minf(float(score) * 0.8, 35.0)
+	if wind_particles:
+		wind_particles.emitting = false
+	if fog_rect:
+		var tween = create_tween()
+		tween.tween_property(fog_rect, "color:a", 0.0, 0.5)
+	if bird and state == GameState.PLAYING:
+		bird.position.x = bird_base_x
+	if survived and state == GameState.PLAYING and achievements:
+		if was_wind:
+			achievements.unlock("storm_rider")
+		elif was_fog:
+			achievements.unlock("fog_navigator")
 
 func _input(event: InputEvent) -> void:
 	if state == GameState.GAME_OVER and can_restart:
@@ -209,11 +322,16 @@ func _check_score_events() -> void:
 		boss_level += 1
 		next_boss_score += 100
 		start_boss_encounter()
-	
+
+	# Weather event trigger (boss sırasında değil)
+	if score >= next_weather_score:
+		next_weather_score = score + randi_range(8, 13)
+		_maybe_trigger_weather()
+
 	pipe_spawner.set_game_state_data(score, is_night)
-	
+
 	var new_speed = 120.0 + minf(float(score) * 0.8, 35.0)
-	ground.speed = new_speed
+	ground.speed = new_speed + wind_pipe_bonus
 
 func start_boss_encounter() -> void:
 	pipe_spawner.stop()
@@ -322,6 +440,8 @@ func _on_bird_died() -> void:
 	for child in pipes_container.get_children():
 		if child.has_method("stop"):
 			child.stop()
+
+	_clear_weather(false)
 	
 	get_tree().create_timer(0.18).timeout.connect(func():
 		audio_manager.play_die()

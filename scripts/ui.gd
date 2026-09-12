@@ -23,6 +23,7 @@ var ranks_title_label: Label
 var score_container: HBoxContainer
 var score_label: Label
 var perfect_label: Label
+var weather_banner: Label
 var achievement_popup: PanelContainer
 var achieve_icon: Label
 var achieve_title: Label
@@ -102,6 +103,7 @@ func _ready() -> void:
 
 	_build_ranks_button()
 	_build_ranks_modal()
+	_build_weather_banner()
 	NetworkManager.ranks_received.connect(_on_ranks_received)
 	_add_menu_juice()
 	_fade_in()
@@ -767,6 +769,40 @@ func _on_ranks_received(entries: Array, total: int) -> void:
 		idx += 1
 
 # --- GÖRSEL POLISH ---
+func _build_weather_banner() -> void:
+	if weather_banner:
+		return
+	weather_banner = Label.new()
+	weather_banner.add_theme_font_size_override("font_size", 16)
+	weather_banner.add_theme_color_override("font_color", Color(0.85, 0.95, 1.0))
+	weather_banner.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	weather_banner.add_theme_constant_override("outline_size", 5)
+	weather_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	weather_banner.offset_left = 14.0
+	weather_banner.offset_top = 84.0
+	weather_banner.offset_right = 274.0
+	weather_banner.offset_bottom = 114.0
+	weather_banner.pivot_offset = Vector2(130, 15)
+	weather_banner.visible = false
+	weather_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(weather_banner)
+
+func show_weather_banner(text: String) -> void:
+	_init_node_references()
+	if weather_banner == null:
+		_build_weather_banner()
+	if weather_banner == null:
+		return
+	weather_banner.text = text
+	weather_banner.visible = true
+	weather_banner.modulate.a = 1.0
+	weather_banner.scale = Vector2(1.25, 1.25)
+	var tween = create_tween()
+	tween.tween_property(weather_banner, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_interval(1.6)
+	tween.tween_property(weather_banner, "modulate:a", 0.0, 0.4)
+	tween.tween_callback(func(): weather_banner.visible = false)
+
 func spawn_score_popup(world_pos: Vector2, text: String, color: Color = Color.WHITE) -> void:
 	var lbl := Label.new()
 	lbl.text = text
