@@ -14,6 +14,8 @@ signal opponent_score_updated(score: int)
 signal rematch_requested(sync_seed: int)
 signal opponent_ready()
 signal room_error(message: String)
+signal match_searching()
+signal match_cancelled()
 signal ranks_received(entries: Array, total: int)
 
 const WS_PORT: int = 8910
@@ -222,6 +224,15 @@ func join_room(code: String) -> void:
 	clear_session_history()
 	send_json({"type": "join_room", "room_code": code.strip_edges(), "name": get_player_name()})
 
+func quick_match() -> void:
+	if not ws or ws.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		connect_to_server()
+	clear_session_history()
+	send_json({"type": "quick_match", "name": get_player_name()})
+
+func cancel_quick_match() -> void:
+	send_json({"type": "cancel_match"})
+
 func is_host() -> bool:
 	return is_host_player
 
@@ -305,6 +316,12 @@ func _handle_server_message(raw_msg: String) -> void:
 			opponent_player_name = str(json.get("opponent_name", "Rakip"))
 			player_connected.emit(2)
 			game_started.emit(current_seed)
+
+		"match_searching":
+			match_searching.emit()
+
+		"match_cancelled":
+			match_cancelled.emit()
 			
 		"sync":
 			var pos_y = float(json.get("pos_y", 0.0))

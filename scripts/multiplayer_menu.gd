@@ -20,6 +20,12 @@ extends Control
 
 @onready var audio_player: AudioStreamPlayer = $SwooshPlayer
 
+var quick_section: VBoxContainer
+var quick_btn: Button
+var quick_status_label: Label
+var quick_cancel_btn: Button
+var is_searching: bool = false
+
 func _ready() -> void:
 	main_selection.visible = true
 	online_lobby.visible = false
@@ -45,6 +51,9 @@ func _ready() -> void:
 	NetworkManager.connection_failed.connect(_on_connection_failed)
 	NetworkManager.server_disconnected.connect(_on_server_disconnected)
 	NetworkManager.room_error.connect(_on_room_error)
+	NetworkManager.match_searching.connect(_on_match_searching)
+
+	_build_quick_section()
 	
 	_update_server_status()
 	
@@ -94,20 +103,93 @@ func _on_online_menu_pressed() -> void:
 
 func _on_back_to_main_pressed() -> void:
 	_play_swoosh()
+	_cancel_search_if_active()
 	NetworkManager.disconnect_game()
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 func _on_back_to_selection_pressed() -> void:
 	_play_swoosh()
+	_cancel_search_if_active()
 	NetworkManager.disconnect_game()
 	main_selection.visible = true
 	online_lobby.visible = false
 	host_section.visible = false
 	join_section.visible = false
 
+# --- QUICK MATCH (rastgele eşleşme) ---
+func _build_quick_section() -> void:
+	if quick_section or online_lobby == null:
+		return
+	quick_section = VBoxContainer.new()
+	quick_section.add_theme_constant_override("separation", 8)
+	online_lobby.add_child(quick_section)
+	online_lobby.move_child(quick_section, 2)
+
+	quick_btn = Button.new()
+	quick_btn.custom_minimum_size = Vector2(0, 42)
+	quick_btn.add_theme_font_size_override("font_size", 12)
+	quick_btn.text = "⚡ HIZLI EŞLEŞME\n(Rastgele Rakip)"
+	quick_btn.pressed.connect(_on_quick_match_pressed)
+	quick_section.add_child(quick_btn)
+
+	quick_status_label = Label.new()
+	quick_status_label.add_theme_font_size_override("font_size", 10)
+	quick_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	quick_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	quick_status_label.visible = false
+	quick_section.add_child(quick_status_label)
+
+	quick_cancel_btn = Button.new()
+	quick_cancel_btn.custom_minimum_size = Vector2(0, 30)
+	quick_cancel_btn.add_theme_font_size_override("font_size", 11)
+	quick_cancel_btn.text = "❌ VAZGEÇ"
+	quick_cancel_btn.visible = false
+	quick_cancel_btn.pressed.connect(_on_quick_cancel_pressed)
+	quick_section.add_child(quick_cancel_btn)
+
+func _on_quick_match_pressed() -> void:
+	_play_swoosh()
+	if is_searching:
+		return
+	is_searching = true
+	host_section.visible = false
+	join_section.visible = false
+	quick_btn.disabled = true
+	quick_btn.text = "🔍 RAKİP ARANIYOR..."
+	quick_status_label.text = "⏳ Sunucuya bağlanılıyor..."
+	quick_status_label.visible = true
+	quick_cancel_btn.visible = true
+	NetworkManager.quick_match()
+
+func _on_match_searching() -> void:
+	if not is_searching or quick_status_label == null:
+		return
+	quick_status_label.text = "🔍 Rakip aranıyor...\nBulunca maç otomatik başlar."
+
+func _on_quick_cancel_pressed() -> void:
+	_play_swoosh()
+	_cancel_search_ui()
+	NetworkManager.cancel_quick_match()
+
+func _cancel_search_ui() -> void:
+	is_searching = false
+	if quick_btn:
+		quick_btn.disabled = false
+		quick_btn.text = "⚡ HIZLI EŞLEŞME\n(Rastgele Rakip)"
+	if quick_status_label:
+		quick_status_label.visible = false
+	if quick_cancel_btn:
+		quick_cancel_btn.visible = false
+
+func _cancel_search_if_active() -> void:
+	if is_searching:
+		_cancel_search_ui()
+		NetworkManager.cancel_quick_match()
+
 # --- HOST LOGIC ---
 func _on_host_tab_pressed() -> void:
 	_play_swoosh()
+	_cancel_search_if_active()
 	host_section.visible = true
 	join_section.visible = false
 	room_code_label.text = "KOD ALINIYOR..."
@@ -121,6 +203,7 @@ func _on_room_created(code: String) -> void:
 # --- JOIN LOGIC ---
 func _on_join_tab_pressed() -> void:
 	_play_swoosh()
+	_cancel_search_if_active()
 	host_section.visible = false
 	join_section.visible = true
 	join_status_label.text = "Arkadaşının verdiği 4 haneli kodu gir."

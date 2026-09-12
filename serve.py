@@ -101,6 +101,70 @@ def get_rank_of(name: str) -> int:
             return i
     return -1
 
+# --- QUICK MATCH (rastgele eşleşme kuyruğu) ---
+# match_queue: [{"ws": ws, "name": str}]
+match_queue = []
+
+def _queue_remove(ws) -> bool:
+    for i, entry in enumerate(match_queue):
+        if entry["ws"] is ws:
+            del match_queue[i]
+            return True
+    return False
+
+def _queue_find(ws):
+    for entry in match_queue:
+        if entry["ws"] is ws:
+            return entry
+    return None
+
+def _ws_alive(ws) -> bool:
+    try:
+        return bool(getattr(ws, "open", True))
+    except Exception:
+        return False
+
+async def _begin_paired_match(p1, p2):
+    while True:
+        code = str(random.randint(1000, 9999))
+        if code not in rooms:
+            break
+    seed = random.randint(100000, 999999)
+    rooms[code] = {
+        "host": p1["ws"],
+        "guest": p2["ws"],
+        "seed": seed,
+        "host_name": p1["name"],
+        "guest_name": p2["name"],
+        "host_ready": False,
+        "guest_ready": False
+    }
+    client_rooms[p1["ws"]] = {"code": code, "role": "host"}
+    client_rooms[p2["ws"]] = {"code": code, "role": "guest"}
+    print(f"[WebSocket] ⚡ Hızlı eşleşme: {code} ({p1['name']} vs {p2['name']})")
+    try:
+        await p1["ws"].send(json.dumps({
+            "type": "game_start",
+            "room_code": code,
+            "seed": seed,
+            "is_host": True,
+            "my_name": p1["name"],
+            "opponent_name": p2["name"]
+        }))
+    except Exception:
+        pass
+    try:
+        await p2["ws"].send(json.dumps({
+            "type": "game_start",
+            "room_code": code,
+            "seed": seed,
+            "is_host": False,
+            "my_name": p2["name"],
+            "opponent_name": p1["name"]
+        }))
+    except Exception:
+        pass
+
 # --- WEBSOCKET ROOM RELAY SERVER ---
 # rooms: code -> {"host": ws, "guest": ws, "seed": int}
 rooms = {}
@@ -118,6 +182,7 @@ async def handle_ws(websocket):
             msg_type = data.get("type")
 
             if msg_type == "create_room":
+                _queue_remove(websocket)
                 # Generate unique 4-digit code (e.g. 4821)
                 while True:
                     code = str(random.randint(1000, 9999))
@@ -142,6 +207,7 @@ async def handle_ws(websocket):
                 }))
 
             elif msg_type == "join_room":
+                _queue_remove(websocket)
                 code = str(data.get("room_code", "")).strip()
                 guest_name = str(data.get("name", "Oyuncu 2")).strip() or "Oyuncu 2"
                 if code not in rooms:
@@ -278,6 +344,48 @@ async def handle_ws(websocket):
                 except Exception:
                     pass
 
+            elif msg_type == "quick_match":
+                # Zaten bir odadaysa eşleşmeye girme
+                if websocket in client_rooms:
+                    continue
+                try:
+                    qname = str(data.get("name", "Oyuncu")).strip()[:12] or "Oyuncu"
+                except Exception:
+                    qname = "Oyuncu"
+                existing = _queue_find(websocket)
+                if existing:
+                    existing["name"] = qname
+                else:
+                    match_queue.append({"ws": websocket, "name": qname})
+                # Ölü bağlantıları temizle
+                for entry in match_queue[:]:
+                    if not _ws_alive(entry["ws"]):
+                        match_queue.remove(entry)
+                # Kendinden farklı ilk bekleyeni bul
+                partner = None
+                for entry in match_queue:
+                    if entry["ws"] is not websocket and _ws_alive(entry["ws"]):
+                        partner = entry
+                        break
+                if partner:
+                    match_queue.remove(partner)
+                    _queue_remove(websocket)
+                    await _begin_paired_match(partner, {"ws": websocket, "name": qname})
+                else:
+                    print(f"[WebSocket] 🔍 Eşleşme aranıyor: {qname} (kuyruk: {len(match_queue)})")
+                    try:
+                        await websocket.send(json.dumps({"type": "match_searching"}))
+                    except Exception:
+                        pass
+
+            elif msg_type == "cancel_match":
+                if _queue_remove(websocket):
+                    print("[WebSocket] 🚫 Eşleşme araması iptal edildi.")
+                try:
+                    await websocket.send(json.dumps({"type": "match_cancelled"}))
+                except Exception:
+                    pass
+
             elif msg_type in ("sync", "flap", "died", "score_update"):
                 # Fast relay to the opponent
                 info = client_rooms.get(websocket)
@@ -294,6 +402,7 @@ async def handle_ws(websocket):
         pass
     finally:
         info = client_rooms.pop(websocket, None)
+        _queue_remove(websocket)
         last_submit_at.pop(websocket, None)
         if info:
             code = info["code"]
