@@ -1,0 +1,90 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/boss.gd" id="1_boss"]
+[ext_resource type="Texture2D" path="res://assets/sprites/pipe-red.png" id="2_pipe_red"]
+
+[sub_resource type="Gradient" id="Gradient_thrust"]
+colors = PackedColorArray(1, 0.8, 0.1, 0.9, 1, 0.2, 0.05, 0)
+
+[sub_resource type="Gradient" id="Gradient_steam"]
+colors = PackedColorArray(0.9, 0.9, 0.9, 0.7, 0.9, 0.9, 0.9, 0)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_boss"]
+size = Vector2(46, 126)
+
+[node name="Boss" type="Node2D"]
+z_index = 8
+script = ExtResource("1_boss")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="TopPipe" type="Sprite2D" parent="Visual"]
+position = Vector2(0, -60)
+scale = Vector2(0.65, 0.4)
+texture = ExtResource("2_pipe_red")
+flip_v = true
+
+[node name="BottomPipe" type="Sprite2D" parent="Visual"]
+position = Vector2(0, 60)
+scale = Vector2(0.65, 0.4)
+texture = ExtResource("2_pipe_red")
+
+[node name="BodyCockpit" type="Polygon2D" parent="Visual"]
+color = Color(0.28, 0.26, 0.32, 1)
+polygon = PackedVector2Array(-20, -28, 20, -28, 28, 0, 20, 28, -20, 28, -25, 0)
+
+[node name="CockpitBorder" type="Line2D" parent="Visual"]
+points = PackedVector2Array(-20, -28, 20, -28, 28, 0, 20, 28, -20, 28, -25, 0, -20, -28)
+width = 2.0
+default_color = Color(0.9, 0.3, 0.2, 1)
+
+[node name="CoreEye" type="Polygon2D" parent="Visual"]
+color = Color(1, 0.2, 0.1, 1)
+polygon = PackedVector2Array(-10, -7, 10, -7, 7, 7, -7, 7)
+
+[node name="Thrusters" type="CPUParticles2D" parent="Visual"]
+position = Vector2(24, 0)
+amount = 14
+lifetime = 0.3
+direction = Vector2(1, 0)
+spread = 15.0
+gravity = Vector2(0, 20)
+initial_velocity_min = 40.0
+initial_velocity_max = 80.0
+scale_amount_min = 3.0
+scale_amount_max = 5.0
+color_ramp = SubResource("Gradient_thrust")
+
+[node name="SteamParticles" type="CPUParticles2D" parent="Visual"]
+position = Vector2(0, -26)
+emitting = false
+amount = 10
+lifetime = 0.5
+direction = Vector2(0, -1)
+spread = 25.0
+gravity = Vector2(0, -30)
+initial_velocity_min = 25.0
+initial_velocity_max = 50.0
+scale_amount_min = 2.0
+scale_amount_max = 4.0
+color_ramp = SubResource("Gradient_steam")
+
+[node name="ExplosionParticles" type="CPUParticles2D" parent="."]
+emitting = false
+amount = 28
+lifetime = 0.65
+one_shot = true
+explosiveness = 0.9
+spread = 180.0
+gravity = Vector2(0, 150)
+initial_velocity_min = 70.0
+initial_velocity_max = 180.0
+scale_amount_min = 3.0
+scale_amount_max = 6.0
+color = Color(1, 0.8, 0.15, 1)
+
+[node name="HitBox" type="Area2D" parent="."]
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="HitBox"]
+shape = SubResource("RectangleShape2D_boss")

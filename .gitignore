@@ -1,0 +1,14 @@
+# Godot 4+ editor cache (yeniden üretilir, repoya girmez)
+.godot/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store

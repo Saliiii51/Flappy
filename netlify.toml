@@ -1,0 +1,22 @@
+[build]
+  publish = "web"
+
+[[headers]]
+  for = "*.wasm"
+  [headers.values]
+    Content-Type = "application/wasm"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "*.pck"
+  [headers.values]
+    Content-Type = "application/octet-stream"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "*.js"
+  [headers.values]
+    Content-Type = "application/javascript"
+
+# Bu projede threads kapalı (ensureCrossOriginIsolationHeaders=false),
+# o yüzden COOP/COEP zorunlu değil. Açarsan bazı gömülü (iframe) senaryolar bozulabilir.

@@ -1,0 +1,670 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui.gd" id="1_ui_script"]
+[ext_resource type="Texture2D" path="res://assets/sprites/message.png" id="2_msg_tex"]
+[ext_resource type="Texture2D" path="res://assets/sprites/gameover.png" id="3_gameover_tex"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_card"]
+bg_color = Color(0.870588, 0.847059, 0.584314, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.329412, 0.219608, 0.278431, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+shadow_color = Color(0, 0, 0, 0.25)
+shadow_size = 3
+shadow_offset = Vector2(0, 3)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_medal"]
+bg_color = Color(0.78, 0.75, 0.5, 0.6)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.4, 0.3, 0.2, 0.8)
+corner_radius_top_left = 25
+corner_radius_top_right = 25
+corner_radius_bottom_right = 25
+corner_radius_bottom_left = 25
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_achieve"]
+bg_color = Color(0.16, 0.14, 0.22, 0.96)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.84, 0.15, 0.95)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+shadow_color = Color(0, 0, 0, 0.5)
+shadow_size = 5
+shadow_offset = Vector2(0, 3)
+
+[node name="UI" type="CanvasLayer"]
+script = ExtResource("1_ui_script")
+
+[node name="ProfileButton" type="Button" parent="."]
+unique_name_in_owner = true
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 110.0
+offset_bottom = 36.0
+focus_mode = 0
+theme_override_font_sizes/font_size = 11
+text = "👤 PROFİL"
+
+[node name="AchieveMenuButton" type="Button" parent="."]
+unique_name_in_owner = true
+offset_left = 208.0
+offset_top = 8.0
+offset_right = 244.0
+offset_bottom = 39.0
+focus_mode = 0
+theme_override_font_sizes/font_size = 16
+text = "🏆"
+flat = true
+
+[node name="MuteButton" type="Button" parent="."]
+unique_name_in_owner = true
+offset_left = 246.0
+offset_top = 8.0
+offset_right = 282.0
+offset_bottom = 39.0
+focus_mode = 0
+theme_override_font_sizes/font_size = 16
+text = "🔊"
+flat = true
+
+[node name="DoubleScoreIndicator" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+offset_left = 12.0
+offset_top = 10.0
+offset_right = 120.0
+offset_bottom = 33.0
+theme_override_colors/font_color = Color(1, 0.9, 0.1, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.7)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 12
+text = "⭐ 2X AKTİF!"
+
+[node name="MessageScreen" type="TextureRect" parent="."]
+unique_name_in_owner = true
+offset_left = 52.0
+offset_top = 75.0
+offset_right = 236.0
+offset_bottom = 342.0
+texture = ExtResource("2_msg_tex")
+
+[node name="SkinSelector" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+offset_left = 24.0
+offset_top = 345.0
+offset_right = 264.0
+offset_bottom = 385.0
+alignment = 1
+
+[node name="PrevSkinBtn" type="Button" parent="SkinSelector"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 32)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_sizes/font_size = 16
+text = "◀"
+
+[node name="SkinLabel" type="Label" parent="SkinSelector"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.6)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 13
+text = "🟡 SARI KUŞ"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="NextSkinBtn" type="Button" parent="SkinSelector"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 32)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_sizes/font_size = 16
+text = "▶"
+
+[node name="MultiplayerButton" type="Button" parent="."]
+unique_name_in_owner = true
+offset_left = 64.0
+offset_top = 388.0
+offset_right = 224.0
+offset_bottom = 418.0
+focus_mode = 0
+theme_override_font_sizes/font_size = 11
+text = "👥 ÇOK OYUNCULU"
+
+[node name="ScoreContainer" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+offset_left = 20.0
+offset_top = 30.0
+offset_right = 268.0
+offset_bottom = 66.0
+pivot_offset = Vector2(124, 18)
+alignment = 1
+
+[node name="ScoreLabel" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+offset_left = 20.0
+offset_top = 26.0
+offset_right = 268.0
+offset_bottom = 74.0
+pivot_offset = Vector2(124, 24)
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 34
+text = "0"
+horizontal_alignment = 1
+
+[node name="PerfectLabel" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+offset_left = 70.0
+offset_top = 180.0
+offset_right = 218.0
+offset_bottom = 210.0
+theme_override_colors/font_color = Color(1, 0.88, 0.15, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_colors/font_outline_color = Color(0.3, 0.15, 0.05, 1)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 18
+text = "🎯 PERFECT! +1"
+horizontal_alignment = 1
+
+[node name="AchievementPopup" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+offset_left = 18.0
+offset_top = -75.0
+offset_right = 270.0
+offset_bottom = -20.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_achieve")
+
+[node name="Margin" type="MarginContainer" parent="AchievementPopup"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 6
+
+[node name="HBox" type="HBoxContainer" parent="AchievementPopup/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="AchieveIcon" type="Label" parent="AchievementPopup/Margin/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "🏆"
+
+[node name="VBox" type="VBoxContainer" parent="AchievementPopup/Margin/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+alignment = 1
+
+[node name="AchieveTitle" type="Label" parent="AchievementPopup/Margin/HBox/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_font_sizes/font_size = 11
+text = "BAŞARIM AÇILDI!"
+
+[node name="AchieveDesc" type="Label" parent="AchievementPopup/Margin/HBox/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.9, 0.9, 1)
+theme_override_font_sizes/font_size = 10
+text = "İlk Uçuş - 5 puan"
+
+[node name="BossWarningBanner" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+offset_left = 10.0
+offset_top = 130.0
+offset_right = 278.0
+offset_bottom = 165.0
+theme_override_colors/font_color = Color(1, 0.15, 0.15, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.85)
+theme_override_colors/font_outline_color = Color(0.4, 0, 0, 1)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 13
+text = "⚠️ DİKKAT: MECHA-PIPE GELİYOR! ⚠️"
+horizontal_alignment = 1
+
+[node name="BossHealthContainer" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+offset_left = 20.0
+offset_top = 68.0
+offset_right = 268.0
+offset_bottom = 93.0
+alignment = 1
+
+[node name="BossNameLabel" type="Label" parent="BossHealthContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.25, 0.2, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 11
+text = "👹 MECHA-PIPE:"
+
+[node name="BossHPLabel" type="Label" parent="BossHealthContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.2, 0.2, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 13
+text = "❤️❤️❤️"
+
+[node name="BossDefeatedBanner" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+offset_left = 10.0
+offset_top = 130.0
+offset_right = 278.0
+offset_bottom = 165.0
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.85)
+theme_override_colors/font_outline_color = Color(0.4, 0.2, 0, 1)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 13
+text = "👑 MECHA-PIPE İMHA EDİLDİ! +10 PUAN"
+horizontal_alignment = 1
+
+[node name="GameOverPanel" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="GameOverBanner" type="TextureRect" parent="GameOverPanel"]
+layout_mode = 0
+offset_left = 48.0
+offset_top = 100.0
+offset_right = 240.0
+offset_bottom = 142.0
+texture = ExtResource("3_gameover_tex")
+
+[node name="Card" type="PanelContainer" parent="GameOverPanel"]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 160.0
+offset_right = 264.0
+offset_bottom = 285.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_card")
+
+[node name="MarginContainer" type="MarginContainer" parent="GameOverPanel/Card"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="CardSplit" type="HBoxContainer" parent="GameOverPanel/Card/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="MedalColumn" type="VBoxContainer" parent="GameOverPanel/Card/MarginContainer/CardSplit"]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+alignment = 1
+
+[node name="MedalTitle" type="Label" parent="GameOverPanel/Card/MarginContainer/CardSplit/MedalColumn"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92549, 0.380392, 0.0823529, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.3)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 12
+text = "MEDAL"
+horizontal_alignment = 1
+
+[node name="MedalPanel" type="Panel" parent="GameOverPanel/Card/MarginContainer/CardSplit/MedalColumn"]
+custom_minimum_size = Vector2(50, 50)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_medal")
+
+[node name="MedalBadge" type="Label" parent="GameOverPanel/Card/MarginContainer/CardSplit/MedalColumn/MedalPanel"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 28
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ScoreColumn" type="VBoxContainer" parent="GameOverPanel/Card/MarginContainer/CardSplit"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="ScoreRow" type="HBoxContainer" parent="GameOverPanel/Card/MarginContainer/CardSplit/ScoreColumn"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="GameOverPanel/Card/MarginContainer/CardSplit/ScoreColumn/ScoreRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92549, 0.380392, 0.0823529, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.3)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 14
+text = "SCORE"
+
+[node name="CurrentScoreLabel" type="Label" parent="GameOverPanel/Card/MarginContainer/CardSplit/ScoreColumn/ScoreRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.4)
+theme_override_colors/font_outline_color = Color(0.3, 0.2, 0.1, 1)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 20
+text = "0"
+horizontal_alignment = 2
+
+[node name="BestRow" type="HBoxContainer" parent="GameOverPanel/Card/MarginContainer/CardSplit/ScoreColumn"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="GameOverPanel/Card/MarginContainer/CardSplit/ScoreColumn/BestRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92549, 0.380392, 0.0823529, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.3)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 14
+text = "BEST"
+
+[node name="NewRecordBadge" type="Label" parent="GameOverPanel/Card/MarginContainer/CardSplit/ScoreColumn/BestRow"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.2, 0.2, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 10
+text = "NEW!"
+
+[node name="BestScoreLabel" type="Label" parent="GameOverPanel/Card/MarginContainer/CardSplit/ScoreColumn/BestRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.4)
+theme_override_colors/font_outline_color = Color(0.3, 0.2, 0.1, 1)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 20
+text = "0"
+horizontal_alignment = 2
+
+[node name="RestartBtn" type="Button" parent="GameOverPanel"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 34.0
+offset_top = 296.0
+offset_right = 254.0
+offset_bottom = 338.0
+theme_override_font_sizes/font_size = 13
+text = "🔄 TEKRAR OYNA"
+
+[node name="RestartHint" type="Label" parent="GameOverPanel"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 10.0
+offset_top = 346.0
+offset_right = 278.0
+offset_bottom = 369.0
+mouse_filter = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.6)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 11
+text = "DOKUN VEYA [SPACE] TUŞUNA BAS"
+horizontal_alignment = 1
+
+[node name="AchievementsModal" type="Control" parent="."]
+unique_name_in_owner = true
+visible = false
+z_index = 25
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="DimOverlay" type="ColorRect" parent="AchievementsModal"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.7)
+
+[node name="Card" type="PanelContainer" parent="AchievementsModal"]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 35.0
+offset_right = 272.0
+offset_bottom = 475.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_achieve")
+
+[node name="Margin" type="MarginContainer" parent="AchievementsModal/Card"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="AchievementsModal/Card/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="HBoxContainer" parent="AchievementsModal/Card/Margin/VBox"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="AchievementsModal/Card/Margin/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_font_sizes/font_size = 15
+text = "🏆 BAŞARIMLAR"
+
+[node name="CloseAchieveBtn" type="Button" parent="AchievementsModal/Card/Margin/VBox/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+focus_mode = 0
+theme_override_colors/font_color = Color(0.9, 0.9, 0.9, 1)
+theme_override_font_sizes/font_size = 16
+text = "✖"
+flat = true
+
+[node name="HSeparator" type="HSeparator" parent="AchievementsModal/Card/Margin/VBox"]
+layout_mode = 2
+
+[node name="Scroll" type="ScrollContainer" parent="AchievementsModal/Card/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="AchieveList" type="VBoxContainer" parent="AchievementsModal/Card/Margin/VBox/Scroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="HSeparator2" type="HSeparator" parent="AchievementsModal/Card/Margin/VBox"]
+layout_mode = 2
+
+[node name="AchieveCountLabel" type="Label" parent="AchievementsModal/Card/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_font_sizes/font_size = 11
+text = "Kazanılan: 0 / 6"
+horizontal_alignment = 1
+
+[node name="ProfileModal" type="Control" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Dim" type="ColorRect" parent="ProfileModal"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.72)
+
+[node name="Card" type="PanelContainer" parent="ProfileModal"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -120.0
+offset_top = -155.0
+offset_right = 120.0
+offset_bottom = 155.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="ProfileModal/Card"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="ProfileModal/Card/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 7
+alignment = 1
+
+[node name="ModalTitle" type="Label" parent="ProfileModal/Card/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_font_sizes/font_size = 14
+text = "👤 OYUNCU PROFİLİ"
+horizontal_alignment = 1
+
+[node name="NameDesc" type="Label" parent="ProfileModal/Card/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
+theme_override_font_sizes/font_size = 10
+text = "Oyuncu Adı:"
+
+[node name="ProfileNameInput" type="LineEdit" parent="ProfileModal/Card/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+placeholder_text = "İsmini yaz..."
+alignment = 1
+max_length = 12
+
+[node name="HSeparator" type="HSeparator" parent="ProfileModal/Card/Margin/VBox"]
+layout_mode = 2
+
+[node name="StatsTitle" type="Label" parent="ProfileModal/Card/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 11
+text = "⚔️ ÇOK OYUNCULU KARİYERİ"
+horizontal_alignment = 1
+
+[node name="StatsBox" type="VBoxContainer" parent="ProfileModal/Card/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="WinsLabel" type="Label" parent="ProfileModal/Card/Margin/VBox/StatsBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 1, 0.4, 1)
+theme_override_font_sizes/font_size = 11
+text = "👑 Galibiyet: 0"
+
+[node name="LossesLabel" type="Label" parent="ProfileModal/Card/Margin/VBox/StatsBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.4, 0.4, 1)
+theme_override_font_sizes/font_size = 11
+text = "💀 Mağlubiyet: 0"
+
+[node name="TiesLabel" type="Label" parent="ProfileModal/Card/Margin/VBox/StatsBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_font_sizes/font_size = 11
+text = "🤝 Beraberlik: 0"
+
+[node name="TotalMatchesLabel" type="Label" parent="ProfileModal/Card/Margin/VBox/StatsBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.9, 0.9, 1)
+theme_override_font_sizes/font_size = 11
+text = "🎮 Toplam Maç: 0"
+
+[node name="WinRateLabel" type="Label" parent="ProfileModal/Card/Margin/VBox/StatsBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_font_sizes/font_size = 11
+text = "📈 Kazanma Oranı: %0.0"
+
+[node name="HSeparator2" type="HSeparator" parent="ProfileModal/Card/Margin/VBox"]
+layout_mode = 2
+
+[node name="SaveProfileBtn" type="Button" parent="ProfileModal/Card/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "💾 KAYDET & TAMAM"

@@ -1,0 +1,24 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/boss_projectile.gd" id="1_proj"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_orb"]
+radius = 9.0
+
+[node name="BossProjectile" type="Area2D"]
+z_index = 7
+collision_layer = 2
+script = ExtResource("1_proj")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_orb")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="OuterGlow" type="Polygon2D" parent="Visual"]
+color = Color(1, 0.25, 0.1, 0.6)
+polygon = PackedVector2Array(11, 0, 8, 8, 0, 11, -8, 8, -11, 0, -8, -8, 0, -11, 8, -8)
+
+[node name="Core" type="Polygon2D" parent="Visual"]
+color = Color(1, 0.95, 0.4, 0.95)
+polygon = PackedVector2Array(7, 0, 5, 5, 0, 7, -5, 5, -7, 0, -5, -5, 0, -7, 5, -5)

@@ -1,0 +1,322 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/multiplayer_menu.gd" id="1_menu"]
+[ext_resource type="Texture2D" path="res://assets/sprites/background-day.png" id="2_bg"]
+[ext_resource type="PackedScene" path="res://scenes/clouds.tscn" id="3_clouds"]
+[ext_resource type="AudioStream" path="res://assets/audio/swoosh.ogg" id="4_swoosh"]
+
+[node name="MultiplayerMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_menu")
+
+[node name="Background" type="Sprite2D" parent="."]
+texture = ExtResource("2_bg")
+centered = false
+
+[node name="Clouds" parent="." instance=ExtResource("3_clouds")]
+
+[node name="ColorRect" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.45)
+
+[node name="Panel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -130.0
+offset_top = -180.0
+offset_right = 130.0
+offset_bottom = 180.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="Title" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 17
+text = "👥 ÇOK OYUNCULU"
+horizontal_alignment = 1
+
+[node name="ProfileBar" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="PlayerNameLabel" type="Label" parent="Panel/VBox/ProfileBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_font_sizes/font_size = 11
+text = "👤 Oyuncu: ..."
+horizontal_alignment = 1
+
+[node name="EditNameBtn" type="Button" parent="Panel/VBox/ProfileBar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 9
+text = "✏️ Değiştir"
+
+[node name="MainSelection" type="VBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="DescLabel" type="Label" parent="Panel/VBox/MainSelection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 0.8)
+theme_override_font_sizes/font_size = 10
+text = "Nasıl oynamak istersin?"
+horizontal_alignment = 1
+
+[node name="LocalVersusBtn" type="Button" parent="Panel/VBox/MainSelection"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "📱 AYNI CİHAZDA 1v1\n(İnternetsiz / Yan Yana)"
+
+[node name="OnlineBtn" type="Button" parent="Panel/VBox/MainSelection"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "🌐 ONLİNE / LAN (WIFI)\n(Farklı Telefon / PC)"
+
+[node name="BackBtn" type="Button" parent="Panel/VBox/MainSelection"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "🔙 ANA MENÜYE DÖN"
+
+[node name="OnlineLobby" type="VBoxContainer" parent="Panel/VBox"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="ServerStatusLabel" type="Label" parent="Panel/VBox/OnlineLobby"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "🟢 Sunucuya Bağlandı"
+horizontal_alignment = 1
+
+[node name="TabBox" type="HBoxContainer" parent="Panel/VBox/OnlineLobby"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="HostTabBtn" type="Button" parent="Panel/VBox/OnlineLobby/TabBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 11
+text = "🏠 ODA KUR"
+
+[node name="JoinTabBtn" type="Button" parent="Panel/VBox/OnlineLobby/TabBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 11
+text = "🔑 ODAYA KATIL"
+
+[node name="HostSection" type="VBoxContainer" parent="Panel/VBox/OnlineLobby"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RoomCodeLabel" type="Label" parent="Panel/VBox/OnlineLobby/HostSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.9, 0.2, 1)
+theme_override_font_sizes/font_size = 16
+text = "ODA KODU: ----"
+horizontal_alignment = 1
+
+[node name="HostStatusLabel" type="Label" parent="Panel/VBox/OnlineLobby/HostSection"]
+custom_minimum_size = Vector2(200, 36)
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "⏳ Sunucudan oda kodu alınıyor..."
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="HostStartBtn" type="Button" parent="Panel/VBox/OnlineLobby/HostSection"]
+visible = false
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "🚀 MAÇI BAŞLAT!"
+
+[node name="JoinSection" type="VBoxContainer" parent="Panel/VBox/OnlineLobby"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="CodeInput" type="LineEdit" parent="Panel/VBox/OnlineLobby/JoinSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+placeholder_text = "4 Haneli Oda Kodu"
+alignment = 1
+max_length = 6
+
+[node name="JoinBtn" type="Button" parent="Panel/VBox/OnlineLobby/JoinSection"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "🚀 ODAYA KATIL"
+
+[node name="JoinStatusLabel" type="Label" parent="Panel/VBox/OnlineLobby/JoinSection"]
+custom_minimum_size = Vector2(200, 36)
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "Arkadaşının verdiği 4 haneli kodu gir."
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="BackToSelBtn" type="Button" parent="Panel/VBox/OnlineLobby"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "🔙 GERİ"
+
+[node name="SwooshPlayer" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("4_swoosh")
+
+[node name="NameModal" type="Control" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Dim" type="ColorRect" parent="NameModal"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.7)
+
+[node name="Card" type="PanelContainer" parent="NameModal"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -115.0
+offset_top = -145.0
+offset_right = 115.0
+offset_bottom = 145.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="NameModal/Card"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="NameModal/Card/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 7
+alignment = 1
+
+[node name="ModalTitle" type="Label" parent="NameModal/Card/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_font_sizes/font_size = 14
+text = "👤 OYUNCU PROFİLİ"
+horizontal_alignment = 1
+
+[node name="ModalDesc" type="Label" parent="NameModal/Card/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "Oyuncu Adı:"
+horizontal_alignment = 1
+
+[node name="ModalNameInput" type="LineEdit" parent="NameModal/Card/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+placeholder_text = "Örn: Salih"
+alignment = 1
+max_length = 12
+
+[node name="HSeparator" type="HSeparator" parent="NameModal/Card/Margin/VBox"]
+layout_mode = 2
+
+[node name="StatsTitle" type="Label" parent="NameModal/Card/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 11
+text = "⚔️ ÇOK OYUNCULU KARİYERİ"
+horizontal_alignment = 1
+
+[node name="StatsBox" type="VBoxContainer" parent="NameModal/Card/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="ModalWinsLabel" type="Label" parent="NameModal/Card/Margin/VBox/StatsBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 1, 0.4, 1)
+theme_override_font_sizes/font_size = 11
+text = "👑 Galibiyet: 0"
+
+[node name="ModalLossesLabel" type="Label" parent="NameModal/Card/Margin/VBox/StatsBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.4, 0.4, 1)
+theme_override_font_sizes/font_size = 11
+text = "💀 Mağlubiyet: 0"
+
+[node name="ModalTiesLabel" type="Label" parent="NameModal/Card/Margin/VBox/StatsBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_font_sizes/font_size = 11
+text = "🤝 Beraberlik: 0"
+
+[node name="ModalTotalLabel" type="Label" parent="NameModal/Card/Margin/VBox/StatsBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.9, 0.9, 1)
+theme_override_font_sizes/font_size = 11
+text = "🎮 Toplam Maç: 0"
+
+[node name="ModalWinRateLabel" type="Label" parent="NameModal/Card/Margin/VBox/StatsBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_font_sizes/font_size = 11
+text = "📈 Kazanma Oranı: %0.0"
+
+[node name="HSeparator2" type="HSeparator" parent="NameModal/Card/Margin/VBox"]
+layout_mode = 2
+
+[node name="ModalSaveBtn" type="Button" parent="NameModal/Card/Margin/VBox"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "💾 KAYDET"
+
+[connection signal="pressed" from="Panel/VBox/ProfileBar/EditNameBtn" to="." method="_on_edit_name_pressed"]
+[connection signal="pressed" from="Panel/VBox/MainSelection/LocalVersusBtn" to="." method="_on_local_versus_pressed"]
+[connection signal="pressed" from="Panel/VBox/MainSelection/OnlineBtn" to="." method="_on_online_menu_pressed"]
+[connection signal="pressed" from="Panel/VBox/MainSelection/BackBtn" to="." method="_on_back_to_main_pressed"]
+[connection signal="pressed" from="Panel/VBox/OnlineLobby/TabBox/HostTabBtn" to="." method="_on_host_tab_pressed"]
+[connection signal="pressed" from="Panel/VBox/OnlineLobby/TabBox/JoinTabBtn" to="." method="_on_join_tab_pressed"]
+[connection signal="pressed" from="Panel/VBox/OnlineLobby/HostSection/HostStartBtn" to="." method="_on_host_start_btn_pressed"]
+[connection signal="pressed" from="Panel/VBox/OnlineLobby/JoinSection/JoinBtn" to="." method="_on_join_btn_pressed"]
+[connection signal="pressed" from="Panel/VBox/OnlineLobby/BackToSelBtn" to="." method="_on_back_to_selection_pressed"]
+[connection signal="pressed" from="NameModal/Card/Margin/VBox/ModalSaveBtn" to="." method="_on_modal_save_pressed"]

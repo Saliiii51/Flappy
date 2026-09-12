@@ -1,0 +1,107 @@
+[gd_scene format=3 uid="uid://670dhb6p2gmh"]
+
+[ext_resource type="Script" uid="uid://cjo4kvwdjbsuv" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Texture2D" uid="uid://c0wiw111tehoc" path="res://assets/sprites/background-day.png" id="2_bg"]
+[ext_resource type="PackedScene" path="res://scenes/clouds.tscn" id="3_clouds"]
+[ext_resource type="PackedScene" path="res://scenes/bird.tscn" id="4_bird"]
+[ext_resource type="PackedScene" path="res://scenes/pipe_pair.tscn" id="5_pipe"]
+[ext_resource type="PackedScene" path="res://scenes/ground.tscn" id="6_ground"]
+[ext_resource type="PackedScene" path="res://scenes/ui.tscn" id="7_ui"]
+[ext_resource type="Script" uid="uid://mhtfc63hihxp" path="res://scripts/pipe_spawner.gd" id="8_spawner"]
+[ext_resource type="Script" uid="uid://cu5j7v3mfsowb" path="res://scripts/audio_manager.gd" id="9_audio"]
+[ext_resource type="Script" uid="uid://bp3gyugiiwaj5" path="res://scripts/achievements_manager.gd" id="10_achieve"]
+[ext_resource type="AudioStream" uid="uid://d1y5dlg7h0i2y" path="res://assets/audio/wing.ogg" id="11_wing"]
+[ext_resource type="AudioStream" uid="uid://bfmlkhc3j54kb" path="res://assets/audio/point.ogg" id="12_point"]
+[ext_resource type="AudioStream" uid="uid://bmbi77an5428p" path="res://assets/audio/hit.ogg" id="13_hit"]
+[ext_resource type="AudioStream" uid="uid://dnlj11vlvdqoo" path="res://assets/audio/die.ogg" id="14_die"]
+[ext_resource type="AudioStream" uid="uid://uolidses0ew2" path="res://assets/audio/swoosh.ogg" id="15_swoosh"]
+[ext_resource type="AudioStream" uid="uid://jrwtkst68jem" path="res://assets/audio/bgm.ogg" id="16_bgm"]
+[ext_resource type="AudioStream" uid="uid://bb5mpshg723v1" path="res://assets/audio/boss_music.ogg" id="17_boss_music"]
+
+[sub_resource type="Gradient" id="Gradient_rain"]
+colors = PackedColorArray(0.7, 0.85, 1, 0.7, 0.7, 0.85, 1, 0.2)
+
+[node name="Main" type="Node2D" unique_id=1487298301]
+script = ExtResource("1_main")
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=2141281911]
+anchor_mode = 0
+
+[node name="Background" type="Sprite2D" parent="." unique_id=2122417202]
+position = Vector2(146.625, 259.48093)
+scale = Vector2(0.30047822, 0.30205634)
+texture = ExtResource("2_bg")
+
+[node name="Clouds" parent="." unique_id=1800725426 instance=ExtResource("3_clouds")]
+
+[node name="RainParticles" type="CPUParticles2D" parent="." unique_id=1218778488]
+z_index = 3
+position = Vector2(144, -10)
+emitting = false
+amount = 45
+lifetime = 1.1
+emission_shape = 3
+emission_rect_extents = Vector2(160, 2)
+direction = Vector2(-0.25, 1)
+spread = 4.0
+gravity = Vector2(0, 100)
+initial_velocity_min = 260.0
+initial_velocity_max = 350.0
+scale_amount_min = 1.2
+scale_amount_max = 2.2
+color_ramp = SubResource("Gradient_rain")
+
+[node name="PipesContainer" type="Node2D" parent="." unique_id=1609036323]
+
+[node name="PipeSpawner" type="Node2D" parent="." unique_id=1002694987]
+script = ExtResource("8_spawner")
+pipe_scene = ExtResource("5_pipe")
+
+[node name="SpawnTimer" type="Timer" parent="PipeSpawner" unique_id=304874652]
+wait_time = 1.45
+
+[node name="Bird" parent="." unique_id=1050935825 instance=ExtResource("4_bird")]
+position = Vector2(70, 220)
+
+[node name="Ground" parent="." unique_id=1268798807 instance=ExtResource("6_ground")]
+position = Vector2(0, 400)
+
+[node name="LightningFlash" type="ColorRect" parent="." unique_id=1306705675]
+z_index = 18
+offset_right = 288.0
+offset_bottom = 512.0
+mouse_filter = 2
+color = Color(1, 1, 1, 0)
+
+[node name="UI" parent="." unique_id=764444624 instance=ExtResource("7_ui")]
+
+[node name="AudioManager" type="Node" parent="." unique_id=1489983764]
+script = ExtResource("9_audio")
+
+[node name="Wing" type="AudioStreamPlayer" parent="AudioManager" unique_id=510537014]
+stream = ExtResource("11_wing")
+
+[node name="Point" type="AudioStreamPlayer" parent="AudioManager" unique_id=1707956391]
+stream = ExtResource("12_point")
+
+[node name="Hit" type="AudioStreamPlayer" parent="AudioManager" unique_id=1542487904]
+stream = ExtResource("13_hit")
+
+[node name="Die" type="AudioStreamPlayer" parent="AudioManager" unique_id=1615536580]
+stream = ExtResource("14_die")
+
+[node name="Swoosh" type="AudioStreamPlayer" parent="AudioManager" unique_id=631885236]
+stream = ExtResource("15_swoosh")
+
+[node name="BGM" type="AudioStreamPlayer" parent="AudioManager" unique_id=1038220262]
+stream = ExtResource("16_bgm")
+volume_db = -10.0
+
+[node name="BossMusic" type="AudioStreamPlayer" parent="AudioManager" unique_id=1514399905]
+stream = ExtResource("17_boss_music")
+volume_db = -8.0
+
+[node name="AchievementsManager" type="Node" parent="." unique_id=1895973935]
+script = ExtResource("10_achieve")
+
+[connection signal="timeout" from="PipeSpawner/SpawnTimer" to="PipeSpawner" method="_on_spawn_timer_timeout"]
