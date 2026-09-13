@@ -132,6 +132,101 @@ def week_champion() -> dict:
     name, entry = max(board.items(), key=lambda kv: kv[1].get("best", 0))
     return {"week": wid, "name": name, "best": int(entry.get("best", 0))}
 
+# --- SUPABASE (kalıcı tablo; env yoksa dosya moduna düşer) ---
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
+SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+USE_DB = bool(SUPABASE_URL and SUPABASE_KEY)
+
+def _db_req(method: str, path: str, params=None, body=None, timeout: int = 6):
+    import urllib.request
+    import urllib.parse
+    url = SUPABASE_URL + "/rest/v1" + path
+    if params:
+        url += "?" + urllib.parse.urlencode(params)
+    data = json.dumps(body).encode("utf-8") if body is not None else None
+    req = urllib.request.Request(url, data=data, method=method)
+    req.add_header("apikey", SUPABASE_KEY)
+    req.add_header("Authorization", "Bearer " + SUPABASE_KEY)
+    req.add_header("Content-Type", "application/json")
+    if method in ("POST", "PATCH"):
+        req.add_header("Prefer", "resolution=merge-duplicates,return=representation")
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        raw = resp.read().decode("utf-8")
+        return json.loads(raw) if raw else []
+
+async def db_submit(name: str, score: int):
+    def _do():
+        cur = _db_req("GET", "/scores", {"name": "eq." + name, "select": "best,games"})
+        best, games = score, 1
+        if cur:
+            best = max(int(cur[0].get("best", 0)), score)
+            games = int(cur[0].get("games", 0)) + 1
+        _db_req("POST", "/scores", {"on_conflict": "name"},
+                {"name": name, "best": best, "games": games})
+        wid = current_week_id()
+        cur = _db_req("GET", "/weekly_scores",
+                      {"week": "eq." + wid, "name": "eq." + name, "select": "best,games"})
+        if cur:
+            wbest = max(int(cur[0].get("best", 0)), score)
+            wgames = int(cur[0].get("games", 0)) + 1
+        else:
+            wbest, wgames = score, 1
+        _db_req("POST", "/weekly_scores", {"on_conflict": "week,name"},
+                {"week": wid, "name": name, "best": wbest, "games": wgames})
+        above = _db_req("GET", "/scores", {"best": "gt." + str(best), "select": "name"})
+        return best, len(above) + 1
+    return await asyncio.to_thread(_do)
+
+async def db_top(scope: str, limit: int):
+    def _do():
+        if scope == "week":
+            wid = current_week_id()
+            rows = _db_req("GET", "/weekly_scores",
+                           {"week": "eq." + wid, "select": "name,best,games",
+                            "order": "best.desc", "limit": str(limit)})
+            tot = _db_req("GET", "/weekly_scores",
+                          {"week": "eq." + wid, "select": "name"})
+            total = len(tot)
+        else:
+            rows = _db_req("GET", "/scores",
+                           {"select": "name,best,games",
+                            "order": "best.desc", "limit": str(limit)})
+            tot = _db_req("GET", "/scores", {"select": "name"})
+            total = len(tot)
+        champ = {}
+        try:
+            crows = _db_req("GET", "/weekly_scores",
+                            {"week": "eq." + previous_week_id(),
+                             "select": "name,best", "order": "best.desc", "limit": "1"})
+            if crows:
+                champ = {"week": previous_week_id(), "name": crows[0]["name"],
+                         "best": int(crows[0]["best"])}
+        except Exception:
+            pass
+        entries = [{"name": r.get("name", "?"), "best": int(r.get("best", 0)),
+                    "games": int(r.get("games", 0))} for r in rows]
+        return entries, total, champ
+    return await asyncio.to_thread(_do)
+
+def local_submit(name: str, score: int):
+    for scope in ("all", "week"):
+        entry = _board(scope).get(name, {"best": 0, "games": 0})
+        entry["games"] = int(entry.get("games", 0)) + 1
+        if score > int(entry.get("best", 0)):
+            entry["best"] = score
+        _board(scope)[name] = entry
+    save_ranks()
+    return _board("all").get(name, {}).get("best", score), get_rank_of(name)
+
+def local_top(scope: str, limit: int):
+    board = _board(scope)
+    ordered = sorted(board.items(), key=lambda kv: kv[1].get("best", 0), reverse=True)
+    entries = [
+        {"name": n, "best": int(v.get("best", 0)), "games": int(v.get("games", 0))}
+        for n, v in ordered[:limit]
+    ]
+    return entries, len(board), week_champion()
+
 # --- QUICK MATCH (rastgele eşleşme kuyruğu) ---
 # match_queue: [{"ws": ws, "name": str}]
 match_queue = []
@@ -340,18 +435,19 @@ async def handle_ws(websocket):
                 except Exception:
                     continue
                 score = max(0, min(score, 9999))
-                for scope in ("all", "week"):
-                    entry = _board(scope).get(name, {"best": 0, "games": 0})
-                    entry["games"] = int(entry.get("games", 0)) + 1
-                    if score > int(entry.get("best", 0)):
-                        entry["best"] = score
-                    _board(scope)[name] = entry
-                save_ranks()
+                try:
+                    if USE_DB:
+                        best, rank = await db_submit(name, score)
+                    else:
+                        best, rank = local_submit(name, score)
+                except Exception as e:
+                    print(f"[Ranks] DB hatası, dosya moduna düşüldü: {e}")
+                    best, rank = local_submit(name, score)
                 try:
                     await websocket.send(json.dumps({
                         "type": "rank_ok",
-                        "best": _board("all").get(name, {}).get("best", score),
-                        "rank": get_rank_of(name)
+                        "best": best,
+                        "rank": rank
                     }))
                 except Exception:
                     pass
@@ -365,20 +461,22 @@ async def handle_ws(websocket):
                 scope = str(data.get("scope", "all")).strip().lower()
                 if scope not in ("all", "week"):
                     scope = "all"
-                board = _board(scope)
-                ordered = sorted(board.items(), key=lambda kv: kv[1].get("best", 0), reverse=True)
-                entries = [
-                    {"name": n, "best": int(v.get("best", 0)), "games": int(v.get("games", 0))}
-                    for n, v in ordered[:limit]
-                ]
+                try:
+                    if USE_DB:
+                        entries, total, champ = await db_top(scope, limit)
+                    else:
+                        entries, total, champ = local_top(scope, limit)
+                except Exception as e:
+                    print(f"[Ranks] DB hatası, dosya moduna düşüldü: {e}")
+                    entries, total, champ = local_top(scope, limit)
                 try:
                     await websocket.send(json.dumps({
                         "type": "top_ranks",
                         "scope": scope,
                         "week": current_week_id(),
                         "entries": entries,
-                        "total": len(board),
-                        "champ": week_champion()
+                        "total": total,
+                        "champ": champ
                     }))
                 except Exception:
                     pass
@@ -474,6 +572,10 @@ def start_http():
 
 async def main():
     load_ranks()
+    if USE_DB:
+        print("[Ranks] 🗄️ Supabase modu (kalıcı tablo).")
+    else:
+        print("[Ranks] 📁 Dosya modu (SUPABASE_URL/KEY yok).")
     local_ip = get_local_ip()
     print("=" * 65)
     print(" 🎮 FLAPPY BIRD ODA KODLU MULTIPLAYER SUNUCUSU HAZIR!")
