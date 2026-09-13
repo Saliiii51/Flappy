@@ -294,26 +294,25 @@ def _room_partner(websocket):
     return partner, my_name
 
 # --- ARKADAŞLAR (Supabase varsa kalıcı, yoksa bellek) ---
-def _friends_get(owner: str):
-    if USE_DB:
-        rows = _db_req("GET", "/friends", {"owner": "eq." + owner, "select": "name"})
-        return sorted({r.get("name", "") for r in rows if r.get("name")})
-    return sorted(mem_friends.get(owner, set()))
-
-def _friends_add(owner: str, name: str):
-    if USE_DB:
-        _db_req("POST", "/friends", {"on_conflict": "owner,name"},
-                {"owner": owner, "name": name})
-    else:
-        mem_friends.setdefault(owner, set()).add(name)
-    return _friends_get(owner)
-
-def _friends_remove(owner: str, name: str):
-    if USE_DB:
-        _db_req("DELETE", "/friends", {"owner": "eq." + owner, "name": "eq." + name})
-    else:
-        mem_friends.get(owner, set()).discard(name)
-    return _friends_get(owner)
+# NOT: DB çağrıları thread'de koşar, event loop asla bloklanmaz.
+async def friends_op(op: str, owner: str, name: str = ""):
+    def _do():
+        if USE_DB:
+            if op == "add":
+                _db_req("POST", "/friends", {"on_conflict": "owner,name"},
+                        {"owner": owner, "name": name})
+            elif op == "remove":
+                _db_req("DELETE", "/friends",
+                        {"owner": "eq." + owner, "name": "eq." + name})
+            rows = _db_req("GET", "/friends",
+                           {"owner": "eq." + owner, "select": "name"})
+            return sorted({r.get("name", "") for r in rows if r.get("name")})
+        if op == "add":
+            mem_friends.setdefault(owner, set()).add(name)
+        elif op == "remove":
+            mem_friends.get(owner, set()).discard(name)
+        return sorted(mem_friends.get(owner, set()))
+    return await asyncio.to_thread(_do)
 
 mem_friends = {}
 
@@ -358,6 +357,7 @@ async def _begin_paired_match(p1, p2):
     client_rooms[p1["ws"]] = {"code": code, "role": "host"}
     client_rooms[p2["ws"]] = {"code": code, "role": "guest"}
     print(f"[WebSocket] ⚡ Hızlı eşleşme: {code} ({p1['name']} vs {p2['name']})")
+    ok1, ok2 = False, False
     try:
         await p1["ws"].send(json.dumps({
             "type": "game_start",
@@ -367,6 +367,7 @@ async def _begin_paired_match(p1, p2):
             "my_name": p1["name"],
             "opponent_name": p2["name"]
         }))
+        ok1 = True
     except Exception:
         pass
     try:
@@ -378,8 +379,22 @@ async def _begin_paired_match(p1, p2):
             "my_name": p2["name"],
             "opponent_name": p1["name"]
         }))
+        ok2 = True
     except Exception:
         pass
+    if not (ok1 and ok2):
+        # Biri ölü soketmiş: odayı dağıt, yaşayanı kuyruğa iade et
+        print(f"[WebSocket] ⚠️ Eşleşme başarısız ({code}), yaşayan oyuncu kuyruğa iade edildi.")
+        client_rooms.pop(p1["ws"], None)
+        client_rooms.pop(p2["ws"], None)
+        rooms.pop(code, None)
+        for entry, ok in ((p1, ok1), (p2, ok2)):
+            if ok and _ws_alive(entry["ws"]) and _queue_find(entry["ws"]) is None:
+                match_queue.append(entry)
+                try:
+                    await entry["ws"].send(json.dumps({"type": "match_searching"}))
+                except Exception:
+                    pass
 
 # --- WEBSOCKET ROOM RELAY SERVER ---
 # rooms: code -> {"host": ws, "guest": ws, "seed": int}
@@ -683,15 +698,14 @@ async def handle_ws(websocket):
                 if not me:
                     continue
                 try:
-                    if msg_type == "add_friend":
+                    op = {"get_friends": "get", "add_friend": "add",
+                          "remove_friend": "remove"}[msg_type]
+                    friend = ""
+                    if msg_type in ("add_friend", "remove_friend"):
                         friend = str(data.get("friend", "")).strip()[:12]
-                        if friend and friend != me:
-                            _friends_add(me, friend)
-                    elif msg_type == "remove_friend":
-                        friend = str(data.get("friend", "")).strip()[:12]
-                        if friend:
-                            _friends_remove(me, friend)
-                    friends = _friends_get(me)
+                        if msg_type == "add_friend" and (not friend or friend == me):
+                            op = "get"  # geçersiz ekleme -> sadece listele
+                    friends = await friends_op(op, me, friend)
                 except Exception as e:
                     print(f"[Friends] DB hatası: {e}")
                     friends = []
