@@ -457,6 +457,20 @@ func hide_message() -> void:
 	if start_hint:
 		start_hint.visible = false
 	update_score(0)
+	_show_score_display()
+
+func _show_score_display() -> void:
+	_init_node_references()
+	if digit_textures.size() == 10:
+		if score_container:
+			score_container.visible = true
+		if score_label:
+			score_label.visible = false
+	else:
+		if score_container:
+			score_container.visible = false
+		if score_label:
+			score_label.visible = true
 
 func _update_profile_button_text() -> void:
 	if profile_btn:
@@ -499,16 +513,7 @@ func save_and_close_profile() -> void:
 func close_profile_modal() -> void:
 	if profile_modal:
 		profile_modal.visible = false
-	if digit_textures.size() == 10:
-		if score_container:
-			score_container.visible = true
-		if score_label:
-			score_label.visible = false
-	else:
-		if score_container:
-			score_container.visible = false
-		if score_label:
-			score_label.visible = true
+	_show_score_display()
 
 func set_double_score_indicator(active: bool) -> void:
 	_init_node_references()
