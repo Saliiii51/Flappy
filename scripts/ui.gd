@@ -19,6 +19,10 @@ var ranks_btn: Button
 var ranks_modal: Control
 var ranks_list: VBoxContainer
 var ranks_title_label: Label
+var ranks_scope: String = "all"
+var ranks_tab_all: Button
+var ranks_tab_week: Button
+var champ_label: Label
 
 var score_container: HBoxContainer
 var score_label: Label
@@ -677,8 +681,36 @@ func _build_ranks_modal() -> void:
 	ranks_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(ranks_title_label)
 
+	var tab_row := HBoxContainer.new()
+	tab_row.add_theme_constant_override("separation", 6)
+	tab_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_child(tab_row)
+
+	ranks_tab_all = Button.new()
+	ranks_tab_all.text = "TÜM ZAMANLAR"
+	ranks_tab_all.add_theme_font_size_override("font_size", 10)
+	ranks_tab_all.focus_mode = Control.FOCUS_NONE
+	ranks_tab_all.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ranks_tab_all.pressed.connect(_on_ranks_tab_pressed.bind("all"))
+	tab_row.add_child(ranks_tab_all)
+
+	ranks_tab_week = Button.new()
+	ranks_tab_week.text = "BU HAFTA"
+	ranks_tab_week.add_theme_font_size_override("font_size", 10)
+	ranks_tab_week.focus_mode = Control.FOCUS_NONE
+	ranks_tab_week.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ranks_tab_week.pressed.connect(_on_ranks_tab_pressed.bind("week"))
+	tab_row.add_child(ranks_tab_week)
+
+	champ_label = Label.new()
+	champ_label.add_theme_font_size_override("font_size", 10)
+	champ_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+	champ_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	champ_label.visible = false
+	vbox.add_child(champ_label)
+
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(0, 175)
+	scroll.custom_minimum_size = Vector2(0, 130)
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(scroll)
 
@@ -698,12 +730,32 @@ func _on_ranks_pressed() -> void:
 	if ranks_modal == null:
 		return
 	ranks_modal.visible = true
+	ranks_scope = "all"
+	_refresh_rank_tabs()
 	if NetworkManager.is_connected_to_server:
 		_show_ranks_message("⏳ Yükleniyor...")
-		NetworkManager.request_top_ranks(10)
+		NetworkManager.request_top_ranks(10, ranks_scope)
 	else:
 		_show_ranks_message("⏳ Sunucuya bağlanılıyor...\nBağlanınca tekrar dokun.")
 		NetworkManager.connect_to_server()
+
+func _on_ranks_tab_pressed(scope: String) -> void:
+	if ranks_modal == null:
+		return
+	ranks_scope = scope
+	_refresh_rank_tabs()
+	if NetworkManager.is_connected_to_server:
+		_show_ranks_message("⏳ Yükleniyor...")
+		NetworkManager.request_top_ranks(10, ranks_scope)
+	else:
+		_show_ranks_message("⏳ Sunucuya bağlanılıyor...\nBağlanınca tekrar dokun.")
+		NetworkManager.connect_to_server()
+
+func _refresh_rank_tabs() -> void:
+	if ranks_tab_all:
+		ranks_tab_all.modulate = Color.WHITE if ranks_scope == "all" else Color(0.55, 0.55, 0.6)
+	if ranks_tab_week:
+		ranks_tab_week.modulate = Color.WHITE if ranks_scope == "week" else Color(0.55, 0.55, 0.6)
 
 func _show_ranks_message(text: String) -> void:
 	if ranks_list == null:
@@ -711,7 +763,10 @@ func _show_ranks_message(text: String) -> void:
 	for child in ranks_list.get_children():
 		child.queue_free()
 	if ranks_title_label:
-		ranks_title_label.text = "🏆 GLOBAL SIRALAMA"
+		if ranks_scope == "week":
+			ranks_title_label.text = "🏆 BU HAFTA"
+		else:
+			ranks_title_label.text = "🏆 TÜM ZAMANLAR"
 	var lbl := Label.new()
 	lbl.text = text
 	lbl.add_theme_font_size_override("font_size", 11)
@@ -720,15 +775,29 @@ func _show_ranks_message(text: String) -> void:
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	ranks_list.add_child(lbl)
 
-func _on_ranks_received(entries: Array, total: int) -> void:
+func _on_ranks_received(entries: Array, total: int, scope: String, week: String, champ: Dictionary) -> void:
 	if ranks_list == null or ranks_modal == null:
 		return
+	if scope != ranks_scope:
+		return # eski sekmenin geç gelen yanıtı
 	for child in ranks_list.get_children():
 		child.queue_free()
 	if ranks_title_label:
-		ranks_title_label.text = "🏆 GLOBAL SIRALAMA (%d oyuncu)" % total
+		if scope == "week":
+			ranks_title_label.text = "🏆 BU HAFTA (%s)" % week
+		else:
+			ranks_title_label.text = "🏆 TÜM ZAMANLAR (%d oyuncu)" % total
+	if champ_label:
+		if not champ.is_empty():
+			champ_label.text = "👑 Geçen hafta (%s): %s — %d" % [str(champ.get("week", "")), str(champ.get("name", "?")), int(champ.get("best", 0))]
+			champ_label.visible = true
+		else:
+			champ_label.visible = false
 	if entries.is_empty():
-		_show_ranks_message("Henüz skor yok — ilk sen ol! 🎮")
+		if scope == "week":
+			_show_ranks_message("Bu hafta henüz skor yok — ilk sen ol! 🎮")
+		else:
+			_show_ranks_message("Henüz skor yok — ilk sen ol! 🎮")
 		return
 	var my_name = NetworkManager.get_player_name()
 	var idx = 1

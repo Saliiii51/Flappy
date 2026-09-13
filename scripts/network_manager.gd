@@ -16,7 +16,7 @@ signal opponent_ready()
 signal room_error(message: String)
 signal match_searching()
 signal match_cancelled()
-signal ranks_received(entries: Array, total: int)
+signal ranks_received(entries: Array, total: int, scope: String, week: String, champ: Dictionary)
 
 const WS_PORT: int = 8910
 const PROFILE_SAVE_PATH: String = "user://player_profile.cfg"
@@ -278,12 +278,15 @@ func submit_rank_score(score: int) -> void:
 		"score": score
 	})
 
-func request_top_ranks(limit: int = 10) -> void:
+func request_top_ranks(limit: int = 10, scope: String = "all") -> void:
 	if not ws or ws.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		connect_to_server()
+	if scope != "week":
+		scope = "all"
 	send_json({
 		"type": "get_top",
-		"limit": limit
+		"limit": limit,
+		"scope": scope
 	})
 
 func send_json(data: Dictionary) -> void:
@@ -356,8 +359,14 @@ func _handle_server_message(raw_msg: String) -> void:
 		"top_ranks":
 			var entries = json.get("entries", [])
 			var total = int(json.get("total", 0))
-			if typeof(entries) == TYPE_ARRAY:
-				ranks_received.emit(entries, total)
+			var scope = str(json.get("scope", "all"))
+			var week = str(json.get("week", ""))
+			var champ = json.get("champ", {})
+			if typeof(entries) != TYPE_ARRAY:
+				entries = []
+			if typeof(champ) != TYPE_DICTIONARY:
+				champ = {}
+			ranks_received.emit(entries, total, scope, week, champ)
 			
 		"error":
 			var err_msg = str(json.get("message", "Bilinmeyen hata"))

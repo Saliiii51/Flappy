@@ -70,10 +70,27 @@ class ThreadedHTTPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     daemon_threads = True
 
 # --- GLOBAL LEADERBOARD (kalıcı skor tablosu) ---
-# ranks.json: { "OyuncuAdı": {"best": int, "games": int} }
+# ranks.json: { "all": {ad: {"best","games"}}, "weekly": {hafta_id: {ad: {...}}} }
 RANKS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ranks.json")
-ranks = {}
+ranks = {"all": {}, "weekly": {}}
 last_submit_at = {}  # ws -> timestamp (spam koruması)
+
+def current_week_id() -> str:
+    import datetime as _dt
+    y, w, _d = _dt.date.today().isocalendar()
+    return f"{y}-W{w:02d}"
+
+def previous_week_id() -> str:
+    import datetime as _dt
+    prev = _dt.date.today() - _dt.timedelta(days=7)
+    y, w, _d = prev.isocalendar()
+    return f"{y}-W{w:02d}"
+
+def _board(scope: str, week: str = "") -> dict:
+    if scope == "week":
+        wid = week or current_week_id()
+        return ranks.setdefault("weekly", {}).setdefault(wid, {})
+    return ranks.setdefault("all", {})
 
 def load_ranks():
     global ranks
@@ -82,8 +99,13 @@ def load_ranks():
             with open(RANKS_PATH, "r", encoding="utf-8") as f:
                 data = json.load(f)
             if isinstance(data, dict):
-                ranks = data
-                print(f"[Ranks] 🏆 {len(ranks)} oyuncu yüklendi.")
+                # Eski format ({ad: {...}}) -> "all" panosuna taşı
+                if "all" in data or "weekly" in data:
+                    ranks = {"all": data.get("all", {}), "weekly": data.get("weekly", {})}
+                else:
+                    ranks = {"all": data, "weekly": {}}
+                total = len(ranks.get("all", {}))
+                print(f"[Ranks] 🏆 {total} oyuncu yüklendi.")
     except Exception as e:
         print(f"[Ranks] yüklenemedi: {e}")
 
@@ -94,12 +116,21 @@ def save_ranks():
     except Exception as e:
         print(f"[Ranks] kaydedilemedi: {e}")
 
-def get_rank_of(name: str) -> int:
-    ordered = sorted(ranks.items(), key=lambda kv: kv[1].get("best", 0), reverse=True)
+def get_rank_of(name: str, scope: str = "all") -> int:
+    board = _board(scope)
+    ordered = sorted(board.items(), key=lambda kv: kv[1].get("best", 0), reverse=True)
     for i, (n, _v) in enumerate(ordered, start=1):
         if n == name:
             return i
     return -1
+
+def week_champion() -> dict:
+    wid = previous_week_id()
+    board = ranks.get("weekly", {}).get(wid, {})
+    if not board:
+        return {}
+    name, entry = max(board.items(), key=lambda kv: kv[1].get("best", 0))
+    return {"week": wid, "name": name, "best": int(entry.get("best", 0))}
 
 # --- QUICK MATCH (rastgele eşleşme kuyruğu) ---
 # match_queue: [{"ws": ws, "name": str}]
@@ -309,16 +340,17 @@ async def handle_ws(websocket):
                 except Exception:
                     continue
                 score = max(0, min(score, 9999))
-                entry = ranks.get(name, {"best": 0, "games": 0})
-                entry["games"] = int(entry.get("games", 0)) + 1
-                if score > int(entry.get("best", 0)):
-                    entry["best"] = score
-                ranks[name] = entry
+                for scope in ("all", "week"):
+                    entry = _board(scope).get(name, {"best": 0, "games": 0})
+                    entry["games"] = int(entry.get("games", 0)) + 1
+                    if score > int(entry.get("best", 0)):
+                        entry["best"] = score
+                    _board(scope)[name] = entry
                 save_ranks()
                 try:
                     await websocket.send(json.dumps({
                         "type": "rank_ok",
-                        "best": entry["best"],
+                        "best": _board("all").get(name, {}).get("best", score),
                         "rank": get_rank_of(name)
                     }))
                 except Exception:
@@ -330,7 +362,11 @@ async def handle_ws(websocket):
                 except Exception:
                     limit = 10
                 limit = max(5, min(limit, 50))
-                ordered = sorted(ranks.items(), key=lambda kv: kv[1].get("best", 0), reverse=True)
+                scope = str(data.get("scope", "all")).strip().lower()
+                if scope not in ("all", "week"):
+                    scope = "all"
+                board = _board(scope)
+                ordered = sorted(board.items(), key=lambda kv: kv[1].get("best", 0), reverse=True)
                 entries = [
                     {"name": n, "best": int(v.get("best", 0)), "games": int(v.get("games", 0))}
                     for n, v in ordered[:limit]
@@ -338,8 +374,11 @@ async def handle_ws(websocket):
                 try:
                     await websocket.send(json.dumps({
                         "type": "top_ranks",
+                        "scope": scope,
+                        "week": current_week_id(),
                         "entries": entries,
-                        "total": len(ranks)
+                        "total": len(board),
+                        "champ": week_champion()
                     }))
                 except Exception:
                     pass
