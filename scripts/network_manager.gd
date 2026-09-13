@@ -154,12 +154,20 @@ func _ready() -> void:
 
 # Mobil web'de sistem emoji fontu yok -> gömülü NotoColorEmoji'yi
 # varsayılan tema fontu + global fallback olarak bağla.
+# SIRALAMA KRİTİK: taban BOŞ kalır, listede ÖNCE gömülü Latin font,
+# SONRA emoji fontu olur. (Tabana font koyarsan listedeki emoji fontu
+# çizimde yok sayılıyor; taban boşken liste dışı aranmıyor.)
 func _setup_emoji_font() -> void:
-	if not ResourceLoader.exists("res://assets/fonts/EmojiDefault.tres"):
+	if not ResourceLoader.exists("res://assets/fonts/NotoColorEmoji.ttf"):
 		return
-	var variation = load("res://assets/fonts/EmojiDefault.tres") as Font
-	if variation == null:
+	var emoji_font = load("res://assets/fonts/NotoColorEmoji.ttf") as Font
+	if emoji_font == null:
 		return
+	var builtin = ThemeDB.fallback_font
+	if builtin is FontVariation:
+		return # zaten kurulu
+	var variation := FontVariation.new()
+	variation.fallbacks = [builtin, emoji_font]
 	ThemeDB.get_default_theme().default_font = variation
 	ThemeDB.fallback_font = variation
 
