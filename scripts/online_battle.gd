@@ -145,6 +145,10 @@ func _start_countdown() -> void:
 	)
 
 func _start_match() -> void:
+	# Geri sayım tween'i geç ateşlenirse (iki oyuncu da ilk 3 sn'de
+	# öldüyse) bitmiş maçı diriltmesin.
+	if state != GameState.COUNTDOWN:
+		return
 	state = GameState.PLAYING
 	my_bird.start_flying()
 	opponent_bird.is_active = true

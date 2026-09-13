@@ -102,6 +102,7 @@ offset_top = 75.0
 offset_right = 236.0
 offset_bottom = 342.0
 texture = ExtResource("2_msg_tex")
+expand_mode = 1
 
 [node name="SkinSelector" type="HBoxContainer" parent="."]
 unique_name_in_owner = true

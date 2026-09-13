@@ -152,13 +152,6 @@ text = "⏳ Sunucudan oda kodu alınıyor..."
 horizontal_alignment = 1
 autowrap_mode = 2
 
-[node name="HostStartBtn" type="Button" parent="Panel/VBox/OnlineLobby/HostSection"]
-visible = false
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = "🚀 MAÇI BAŞLAT!"
-
 [node name="JoinSection" type="VBoxContainer" parent="Panel/VBox/OnlineLobby"]
 visible = false
 layout_mode = 2
@@ -316,7 +309,6 @@ text = "💾 KAYDET"
 [connection signal="pressed" from="Panel/VBox/MainSelection/BackBtn" to="." method="_on_back_to_main_pressed"]
 [connection signal="pressed" from="Panel/VBox/OnlineLobby/TabBox/HostTabBtn" to="." method="_on_host_tab_pressed"]
 [connection signal="pressed" from="Panel/VBox/OnlineLobby/TabBox/JoinTabBtn" to="." method="_on_join_tab_pressed"]
-[connection signal="pressed" from="Panel/VBox/OnlineLobby/HostSection/HostStartBtn" to="." method="_on_host_start_btn_pressed"]
 [connection signal="pressed" from="Panel/VBox/OnlineLobby/JoinSection/JoinBtn" to="." method="_on_join_btn_pressed"]
 [connection signal="pressed" from="Panel/VBox/OnlineLobby/BackToSelBtn" to="." method="_on_back_to_selection_pressed"]
 [connection signal="pressed" from="NameModal/Card/Margin/VBox/ModalSaveBtn" to="." method="_on_modal_save_pressed"]
