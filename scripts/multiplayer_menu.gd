@@ -32,6 +32,9 @@ func _ready() -> void:
 	if name_modal:
 		name_modal.visible = false
 
+	if code_input:
+		code_input.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_NUMBER
+
 	var fade := ColorRect.new()
 	fade.color = Color(0, 0, 0, 1)
 	fade.set_anchors_preset(Control.PRESET_FULL_RECT)

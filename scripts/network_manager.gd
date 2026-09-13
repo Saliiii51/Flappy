@@ -148,8 +148,21 @@ func clear_session_history() -> void:
 	ties = 0
 
 func _ready() -> void:
+	_setup_emoji_font()
 	get_player_name()
 	connect_to_server()
+
+# Mobil web'de sistem emoji fontu yok -> gömülü NotoColorEmoji'yi
+# tüm metinlere global fallback yap (tofu kutuları biter).
+func _setup_emoji_font() -> void:
+	if not ResourceLoader.exists("res://assets/fonts/NotoColorEmoji.ttf"):
+		return
+	var emoji_font = load("res://assets/fonts/NotoColorEmoji.ttf") as Font
+	if emoji_font == null:
+		return
+	var variation := FontVariation.new()
+	variation.fallbacks = [emoji_font]
+	ThemeDB.fallback_font = variation
 
 func _process(_delta: float) -> void:
 	if ws:
