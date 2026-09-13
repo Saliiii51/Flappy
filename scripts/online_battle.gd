@@ -56,6 +56,8 @@ var opp_games: int = 0
 var opp_badge_count: int = -1
 
 var taunt_row: HBoxContainer
+var mic_btn: Button
+var voice_poll: float = 0.0
 var chat_modal: Control
 var chat_list: VBoxContainer
 var chat_input: LineEdit
@@ -272,6 +274,13 @@ func _build_taunt_row() -> void:
 		b.focus_mode = Control.FOCUS_NONE
 		b.pressed.connect(_on_taunt_pressed.bind(icon))
 		taunt_row.add_child(b)
+	mic_btn = Button.new()
+	mic_btn.text = "🎙️"
+	mic_btn.custom_minimum_size = Vector2(34, 34)
+	mic_btn.add_theme_font_size_override("font_size", 16)
+	mic_btn.focus_mode = Control.FOCUS_NONE
+	mic_btn.pressed.connect(_on_mic_pressed)
+	taunt_row.add_child(mic_btn)
 
 func _on_taunt_pressed(icon: String) -> void:
 	NetworkManager.send_taunt(icon)
@@ -450,6 +459,48 @@ func _physics_process(delta: float) -> void:
 		if sync_timer >= SYNC_INTERVAL:
 			sync_timer = 0.0
 			NetworkManager.send_bird_sync(my_bird.position.y, my_bird.rotation_degrees)
+
+func _process(delta: float) -> void:
+	if mic_btn == null:
+		return
+	voice_poll += delta
+	if voice_poll < 0.5:
+		return
+	voice_poll = 0.0
+	match _voice_state():
+		"live":
+			mic_btn.text = "🔴"
+		"calling":
+			mic_btn.text = "⏳"
+		"error":
+			mic_btn.text = "⚠️"
+		_:
+			mic_btn.text = "🎙️"
+
+func _voice_available() -> bool:
+	return OS.has_feature("web")
+
+func _voice_state() -> String:
+	if not _voice_available():
+		return "off"
+	var s = JavaScriptBridge.eval("(window.FlappyVoice && window.FlappyVoice.state) || 'off'", true)
+	return str(s)
+
+func _on_mic_pressed() -> void:
+	if not _voice_available():
+		show_ghost_notification("🎙️ Sesli sohbet web sürümünde çalışır!")
+		return
+	var st = _voice_state()
+	if st == "off" or st == "error" or st == "":
+		var code = NetworkManager.current_room_code
+		if code == "":
+			return
+		var caller = "true" if NetworkManager.is_host() else "false"
+		audio_manager.play_swoosh()
+		JavaScriptBridge.eval("window.FlappyVoice && window.FlappyVoice.start('" + code + "', " + caller + ")", true)
+	else:
+		audio_manager.play_swoosh()
+		JavaScriptBridge.eval("window.FlappyVoice && window.FlappyVoice.stop()", true)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if state == GameState.PLAYING:
@@ -722,6 +773,8 @@ func restart_match(sync_seed: int) -> void:
 	get_tree().reload_current_scene()
 
 func leave_to_main_menu() -> void:
+	if _voice_available():
+		JavaScriptBridge.eval("window.FlappyVoice && window.FlappyVoice.stop()", true)
 	NetworkManager.disconnect_game()
 	audio_manager.play_swoosh()
 	get_tree().change_scene_to_file("res://scenes/main.tscn")

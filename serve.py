@@ -396,6 +396,29 @@ async def _begin_paired_match(p1, p2):
                 except Exception:
                     pass
 
+# --- VOICE SIGNALING (WebRTC P2P için, ses sunucudan geçmez) ---
+# voice_rooms: oda kodu -> set(ws). En fazla 2 kişi.
+voice_rooms = {}
+
+def _voice_leave_all(ws):
+    left = []
+    for code in [c for c, members in voice_rooms.items() if ws in members]:
+        members = voice_rooms[code]
+        members.discard(ws)
+        left.append(code)
+        if not members:
+            voice_rooms.pop(code, None)
+    return left
+
+async def _voice_relay(ws, code, payload):
+    members = voice_rooms.get(code, set())
+    for peer in list(members):
+        if peer is not ws:
+            try:
+                await peer.send(json.dumps(payload))
+            except Exception:
+                pass
+
 # --- WEBSOCKET ROOM RELAY SERVER ---
 # rooms: code -> {"host": ws, "guest": ws, "seed": int}
 rooms = {}
@@ -750,6 +773,50 @@ async def handle_ws(websocket):
                 except Exception:
                     pass
 
+            elif msg_type == "voice_join":
+                code = str(data.get("room", "")).strip()[:8]
+                if not code:
+                    continue
+                members = voice_rooms.setdefault(code, set())
+                if websocket not in members:
+                    if len(members) >= 2:
+                        try:
+                            await websocket.send(json.dumps({"type": "voice_full"}))
+                        except Exception:
+                            pass
+                        continue
+                    members.add(websocket)
+                for peer in list(members):
+                    if peer is not websocket:
+                        try:
+                            await peer.send(json.dumps({"type": "voice_hello"}))
+                        except Exception:
+                            pass
+                try:
+                    await websocket.send(json.dumps({
+                        "type": "voice_roster",
+                        "peers": max(0, len(members) - 1)
+                    }))
+                except Exception:
+                    pass
+
+            elif msg_type in ("voice_offer", "voice_answer", "voice_ice"):
+                if len(message) > 16384:
+                    continue
+                code = str(data.get("room", "")).strip()[:8]
+                if not code or websocket not in voice_rooms.get(code, set()):
+                    continue
+                await _voice_relay(websocket, code, data)
+
+            elif msg_type == "voice_leave":
+                code = str(data.get("room", "")).strip()[:8]
+                if code and code in voice_rooms:
+                    voice_rooms[code].discard(websocket)
+                    if not voice_rooms[code]:
+                        voice_rooms.pop(code, None)
+                    else:
+                        await _voice_relay(websocket, code, {"type": "voice_peer_left"})
+
             elif msg_type in ("sync", "flap", "died", "score_update", "badges"):
                 # Fast relay to the opponent
                 info = client_rooms.get(websocket)
@@ -768,6 +835,8 @@ async def handle_ws(websocket):
         info = client_rooms.pop(websocket, None)
         _queue_remove(websocket)
         _unregister_online(websocket)
+        for _code in _voice_leave_all(websocket):
+            await _voice_relay(websocket, _code, {"type": "voice_peer_left"})
         last_submit_at.pop(websocket, None)
         if info:
             code = info["code"]
