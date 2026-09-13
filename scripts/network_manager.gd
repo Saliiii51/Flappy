@@ -17,6 +17,8 @@ signal room_error(message: String)
 signal match_searching()
 signal match_cancelled()
 signal ranks_received(entries: Array, total: int, scope: String, week: String, champ: Dictionary)
+signal bests_received(entries: Array)
+signal opponent_badges_received(badges: Array)
 
 const WS_PORT: int = 8910
 const PROFILE_SAVE_PATH: String = "user://player_profile.cfg"
@@ -289,6 +291,32 @@ func request_top_ranks(limit: int = 10, scope: String = "all") -> void:
 		"scope": scope
 	})
 
+func request_bests(names: Array) -> void:
+	var clean: Array = []
+	for n in names:
+		var s = str(n).strip_edges()
+		if s != "" and not clean.has(s):
+			clean.append(s)
+	send_json({
+		"type": "get_bests",
+		"names": clean.slice(0, 5)
+	})
+
+func get_local_badge_ids() -> Array:
+	var ids: Array = []
+	var config = ConfigFile.new()
+	if config.load("user://flappy_save.cfg") == OK and config.has_section("achievements"):
+		for key in config.get_section_keys("achievements"):
+			if bool(config.get_value("achievements", key, false)):
+				ids.append(str(key))
+	return ids
+
+func send_my_badges() -> void:
+	send_json({
+		"type": "badges",
+		"badges": get_local_badge_ids()
+	})
+
 func send_json(data: Dictionary) -> void:
 	if ws and ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
 		ws.send_text(JSON.stringify(data))
@@ -333,6 +361,11 @@ func _handle_server_message(raw_msg: String) -> void:
 			
 		"flap":
 			opponent_flapped.emit(2)
+
+		"badges":
+			var badges = json.get("badges", [])
+			if typeof(badges) == TYPE_ARRAY:
+				opponent_badges_received.emit(badges)
 			
 		"died":
 			var score = int(json.get("score", 0))
@@ -355,6 +388,12 @@ func _handle_server_message(raw_msg: String) -> void:
 
 		"rank_ok":
 			pass # Skor kaydedildi, ayrıca işlem gerekmiyor
+
+		"bests_info":
+			var bentries = json.get("entries", [])
+			if typeof(bentries) != TYPE_ARRAY:
+				bentries = []
+			bests_received.emit(bentries)
 
 		"top_ranks":
 			var entries = json.get("entries", [])

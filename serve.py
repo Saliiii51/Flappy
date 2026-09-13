@@ -208,6 +208,31 @@ async def db_top(scope: str, limit: int):
         return entries, total, champ
     return await asyncio.to_thread(_do)
 
+def local_bests(names) -> list:
+    board = _board("all")
+    out = []
+    for n in names:
+        e = board.get(n, {"best": 0, "games": 0})
+        out.append({"name": n, "best": int(e.get("best", 0)),
+                    "games": int(e.get("games", 0))})
+    return out
+
+async def db_bests(names) -> list:
+    def _do():
+        if not names:
+            return []
+        filt = "in.(" + ",".join(names) + ")"
+        rows = _db_req("GET", "/scores",
+                       {"name": filt, "select": "name,best,games"})
+        by_name = {r.get("name"): r for r in rows}
+        out = []
+        for n in names:
+            r = by_name.get(n, {})
+            out.append({"name": n, "best": int(r.get("best", 0)),
+                        "games": int(r.get("games", 0))})
+        return out
+    return await asyncio.to_thread(_do)
+
 def local_submit(name: str, score: int):
     for scope in ("all", "week"):
         entry = _board(scope).get(name, {"best": 0, "games": 0})
@@ -523,7 +548,32 @@ async def handle_ws(websocket):
                 except Exception:
                     pass
 
-            elif msg_type in ("sync", "flap", "died", "score_update"):
+            elif msg_type == "get_bests":
+                raw_names = data.get("names", [])
+                if not isinstance(raw_names, list):
+                    raw_names = []
+                names = []
+                for n in raw_names[:5]:
+                    clean = str(n).strip()[:12]
+                    if clean and clean not in names:
+                        names.append(clean)
+                try:
+                    if USE_DB:
+                        entries = await db_bests(names)
+                    else:
+                        entries = local_bests(names)
+                except Exception as e:
+                    print(f"[Ranks] DB hatası, dosya moduna düşüldü: {e}")
+                    entries = local_bests(names)
+                try:
+                    await websocket.send(json.dumps({
+                        "type": "bests_info",
+                        "entries": entries
+                    }))
+                except Exception:
+                    pass
+
+            elif msg_type in ("sync", "flap", "died", "score_update", "badges"):
                 # Fast relay to the opponent
                 info = client_rooms.get(websocket)
                 if info and info["code"] in rooms:

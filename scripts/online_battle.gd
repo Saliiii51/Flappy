@@ -47,6 +47,14 @@ var opp_ready: bool = false
 var my_name: String = "SEN"
 var opp_name: String = "RAKİP"
 
+var versus_card: PanelContainer
+var versus_my_line: Label
+var versus_opp_line: Label
+var my_best: int = -1
+var opp_best: int = -1
+var opp_games: int = 0
+var opp_badge_count: int = -1
+
 var sync_timer: float = 0.0
 const SYNC_INTERVAL: float = 0.033 # ~30 updates per second
 
@@ -92,6 +100,12 @@ func _ready() -> void:
 	NetworkManager.opponent_ready.connect(_on_opponent_ready)
 	NetworkManager.rematch_requested.connect(_on_rematch_requested)
 	NetworkManager.player_disconnected.connect(_on_player_disconnected)
+	NetworkManager.bests_received.connect(_on_bests_received)
+	NetworkManager.opponent_badges_received.connect(_on_opponent_badges)
+
+	_build_versus_card()
+	NetworkManager.request_bests([my_name, opp_name])
+	NetworkManager.send_my_badges()
 	
 	game_over_panel.visible = false
 	ghost_banner.visible = false
@@ -134,11 +148,89 @@ func _start_match() -> void:
 	state = GameState.PLAYING
 	my_bird.start_flying()
 	opponent_bird.is_active = true
-	
+
+	if versus_card:
+		versus_card.visible = false
+
 	if audio_manager.has_method("play_bgm"):
 		audio_manager.play_bgm()
-	
+
 	pipe_spawner.start()
+
+func _build_versus_card() -> void:
+	if versus_card:
+		return
+	versus_card = PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.set_corner_radius_all(8)
+	style.bg_color = Color(0.1, 0.1, 0.16, 0.88)
+	style.border_color = Color(1.0, 0.85, 0.2, 0.9)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	versus_card.add_theme_stylebox_override("panel", style)
+	versus_card.offset_left = 34.0
+	versus_card.offset_top = 118.0
+	versus_card.offset_right = 254.0
+	versus_card.offset_bottom = 208.0
+	$BattleUI.add_child(versus_card)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 10)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_right", 10)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	versus_card.add_child(margin)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 3)
+	margin.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "⚔️ KARŞILAŞMA"
+	title.add_theme_font_size_override("font_size", 13)
+	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	versus_my_line = Label.new()
+	versus_my_line.add_theme_font_size_override("font_size", 11)
+	versus_my_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(versus_my_line)
+
+	versus_opp_line = Label.new()
+	versus_opp_line.add_theme_font_size_override("font_size", 11)
+	versus_opp_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(versus_opp_line)
+
+	_render_versus_card()
+
+func _render_versus_card() -> void:
+	if versus_my_line == null or versus_opp_line == null:
+		return
+	var my_txt = "%s: %s" % [my_name, ("En iyi: %d" % my_best) if my_best >= 0 else "bilgi bekleniyor..."]
+	versus_my_line.text = "🟡 " + my_txt
+	var opp_txt = "%s: %s" % [opp_name, ("En iyi: %d (%d maç)" % [opp_best, opp_games]) if opp_best >= 0 else "bilgi bekleniyor..."]
+	if opp_badge_count >= 0:
+		opp_txt += " 🏅%d" % opp_badge_count
+	versus_opp_line.text = "🔵 " + opp_txt
+
+func _on_bests_received(entries: Array) -> void:
+	for e in entries:
+		if not (e is Dictionary):
+			continue
+		var pname = str(e.get("name", ""))
+		if pname == my_name:
+			my_best = int(e.get("best", 0))
+		elif pname == opp_name:
+			opp_best = int(e.get("best", 0))
+			opp_games = int(e.get("games", 0))
+	_render_versus_card()
+
+func _on_opponent_badges(badges: Array) -> void:
+	opp_badge_count = badges.size()
+	_render_versus_card()
 
 func _physics_process(delta: float) -> void:
 	if state == GameState.PLAYING and my_bird:
@@ -250,6 +342,9 @@ func end_match() -> void:
 	
 	if ghost_banner:
 		ghost_banner.visible = false
+
+	if versus_card:
+		versus_card.visible = false
 	
 	# Record match in session history
 	NetworkManager.record_match(my_final_score, opp_final_score)
