@@ -55,6 +55,16 @@ var opp_best: int = -1
 var opp_games: int = 0
 var opp_badge_count: int = -1
 
+var taunt_row: HBoxContainer
+var chat_modal: Control
+var chat_list: VBoxContainer
+var chat_input: LineEdit
+var chat_open_btn: Button
+var has_unread_chat: bool = false
+
+const TAUNTS: Array[String] = ["😎", "🔥", "💀", "👋"]
+const QUICK_CHAT: Array[String] = ["GG! 🏆", "Tekrar? 🔄", "😎", "🔥", "Of! 😅"]
+
 var sync_timer: float = 0.0
 const SYNC_INTERVAL: float = 0.033 # ~30 updates per second
 
@@ -102,8 +112,12 @@ func _ready() -> void:
 	NetworkManager.player_disconnected.connect(_on_player_disconnected)
 	NetworkManager.bests_received.connect(_on_bests_received)
 	NetworkManager.opponent_badges_received.connect(_on_opponent_badges)
+	NetworkManager.chat_received.connect(_on_chat_received)
+	NetworkManager.taunt_received.connect(_on_taunt_received)
 
 	_build_versus_card()
+	_build_taunt_row()
+	_build_chat_modal()
 	NetworkManager.request_bests([my_name, opp_name])
 	NetworkManager.send_my_badges()
 	
@@ -116,6 +130,8 @@ func _ready() -> void:
 
 func _start_countdown() -> void:
 	state = GameState.COUNTDOWN
+	if taunt_row:
+		taunt_row.visible = true
 	var tween = create_tween()
 	
 	countdown_label.text = "3"
@@ -236,6 +252,198 @@ func _on_opponent_badges(badges: Array) -> void:
 	opp_badge_count = badges.size()
 	_render_versus_card()
 
+# --- TEPKİLER (taunt) + SOHBET (chat) ---
+func _build_taunt_row() -> void:
+	if taunt_row:
+		return
+	taunt_row = HBoxContainer.new()
+	taunt_row.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	taunt_row.offset_top = -158.0
+	taunt_row.offset_bottom = -124.0
+	taunt_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	taunt_row.add_theme_constant_override("separation", 8)
+	taunt_row.visible = false
+	$BattleUI.add_child(taunt_row)
+	for icon in TAUNTS:
+		var b := Button.new()
+		b.text = icon
+		b.custom_minimum_size = Vector2(34, 34)
+		b.add_theme_font_size_override("font_size", 16)
+		b.focus_mode = Control.FOCUS_NONE
+		b.pressed.connect(_on_taunt_pressed.bind(icon))
+		taunt_row.add_child(b)
+
+func _on_taunt_pressed(icon: String) -> void:
+	NetworkManager.send_taunt(icon)
+	_show_taunt_popup(icon, my_bird)
+
+func _on_taunt_received(icon: String, _sender: String) -> void:
+	_show_taunt_popup(icon, opponent_bird)
+	audio_manager.play_point()
+
+func _show_taunt_popup(icon: String, above: Node2D) -> void:
+	if above == null:
+		return
+	var lbl := Label.new()
+	lbl.text = icon
+	lbl.add_theme_font_size_override("font_size", 26)
+	$BattleUI.add_child(lbl)
+	lbl.position = Vector2(clampf(above.position.x - 13.0, 8.0, 240.0), clampf(above.position.y - 70.0, 30.0, 380.0))
+	var tween = create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(lbl, "position:y", lbl.position.y - 36.0, 0.9)
+	tween.tween_property(lbl, "modulate:a", 0.0, 0.9).set_delay(0.2)
+	tween.chain().tween_callback(lbl.queue_free)
+
+func _build_chat_modal() -> void:
+	if chat_modal:
+		return
+	chat_modal = Control.new()
+	chat_modal.set_anchors_preset(Control.PRESET_FULL_RECT)
+	chat_modal.visible = false
+	$BattleUI.add_child(chat_modal)
+
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.65)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	chat_modal.add_child(dim)
+	dim.gui_input.connect(func(event: InputEvent):
+		if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed):
+			chat_modal.visible = false
+	)
+
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.set_corner_radius_all(8)
+	style.bg_color = Color(0.12, 0.12, 0.18, 0.97)
+	style.border_color = Color(0.4, 0.85, 1.0, 0.9)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	panel.add_theme_stylebox_override("panel", style)
+	panel.offset_left = 30.0
+	panel.offset_top = 130.0
+	panel.offset_right = 258.0
+	panel.offset_bottom = 390.0
+	chat_modal.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 10)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_right", 10)
+	margin.add_theme_constant_override("margin_bottom", 10)
+	panel.add_child(margin)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	margin.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "💬 ODA SOHBETİ"
+	title.add_theme_font_size_override("font_size", 13)
+	title.add_theme_color_override("font_color", Color(0.4, 0.85, 1.0))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 110)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(scroll)
+
+	chat_list = VBoxContainer.new()
+	chat_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	chat_list.add_theme_constant_override("separation", 2)
+	scroll.add_child(chat_list)
+
+	var quick_row := HBoxContainer.new()
+	quick_row.add_theme_constant_override("separation", 4)
+	quick_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_child(quick_row)
+	for q in QUICK_CHAT:
+		var qb := Button.new()
+		qb.text = q
+		qb.add_theme_font_size_override("font_size", 9)
+		qb.focus_mode = Control.FOCUS_NONE
+		qb.pressed.connect(_on_quick_chat_pressed.bind(q))
+		quick_row.add_child(qb)
+
+	var input_row := HBoxContainer.new()
+	input_row.add_theme_constant_override("separation", 6)
+	vbox.add_child(input_row)
+
+	chat_input = LineEdit.new()
+	chat_input.placeholder_text = "Mesaj yaz..."
+	chat_input.max_length = 60
+	chat_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	chat_input.text_submitted.connect(func(_t): _on_chat_send_pressed())
+	input_row.add_child(chat_input)
+
+	var send_btn := Button.new()
+	send_btn.text = "➤"
+	send_btn.focus_mode = Control.FOCUS_NONE
+	send_btn.pressed.connect(_on_chat_send_pressed)
+	input_row.add_child(send_btn)
+
+	# Sohbet açma butonu (maç sonu kartına eklenir)
+	if rematch_btn and rematch_btn.get_parent():
+		chat_open_btn = Button.new()
+		chat_open_btn.text = "💬 SOHBET"
+		chat_open_btn.add_theme_font_size_override("font_size", 11)
+		chat_open_btn.focus_mode = Control.FOCUS_NONE
+		chat_open_btn.pressed.connect(_on_chat_open_pressed)
+		rematch_btn.get_parent().add_child(chat_open_btn)
+
+func _on_quick_chat_pressed(text: String) -> void:
+	_send_chat_text(text)
+
+func _on_chat_send_pressed() -> void:
+	if chat_input == null:
+		return
+	_send_chat_text(chat_input.text)
+	chat_input.text = ""
+
+func _send_chat_text(text: String) -> void:
+	var clean = text.strip_edges()
+	if clean == "":
+		return
+	NetworkManager.send_chat(clean)
+	_append_chat("Sen", clean)
+
+func _on_chat_received(text: String, sender: String) -> void:
+	if chat_modal and chat_modal.visible:
+		_append_chat(sender, text)
+	else:
+		has_unread_chat = true
+		_refresh_chat_button()
+		# Sohbet kapalıysa kısa bildirim göster
+		show_ghost_notification("💬 %s: %s" % [sender, text])
+	audio_manager.play_point()
+
+func _append_chat(who: String, text: String) -> void:
+	if chat_list == null:
+		return
+	var lbl := Label.new()
+	lbl.text = "%s: %s" % [who, text]
+	lbl.add_theme_font_size_override("font_size", 10)
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	chat_list.add_child(lbl)
+	while chat_list.get_child_count() > 20:
+		chat_list.get_child(0).queue_free()
+
+func _on_chat_open_pressed() -> void:
+	if chat_modal == null:
+		return
+	has_unread_chat = false
+	_refresh_chat_button()
+	chat_modal.visible = true
+	if chat_input:
+		chat_input.grab_focus()
+
+func _refresh_chat_button() -> void:
+	if chat_open_btn:
+		chat_open_btn.text = "💬 SOHBET (•)" if has_unread_chat else "💬 SOHBET"
+
 func _physics_process(delta: float) -> void:
 	if state == GameState.PLAYING and my_bird:
 		sync_timer += delta
@@ -349,6 +557,9 @@ func end_match() -> void:
 
 	if versus_card:
 		versus_card.visible = false
+
+	if taunt_row:
+		taunt_row.visible = false
 	
 	# Record match in session history
 	NetworkManager.record_match(my_final_score, opp_final_score)

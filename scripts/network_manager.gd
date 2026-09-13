@@ -19,6 +19,12 @@ signal match_cancelled()
 signal ranks_received(entries: Array, total: int, scope: String, week: String, champ: Dictionary)
 signal bests_received(entries: Array)
 signal opponent_badges_received(badges: Array)
+signal chat_received(text: String, sender: String)
+signal taunt_received(icon: String, sender: String)
+signal friends_received(friends: Array)
+signal invite_received(from_name: String, room_code: String)
+signal invite_sent(to_name: String)
+signal invite_failed(to_name: String, reason: String)
 
 const WS_PORT: int = 8910
 const PROFILE_SAVE_PATH: String = "user://player_profile.cfg"
@@ -337,6 +343,39 @@ func send_my_badges() -> void:
 		"badges": get_local_badge_ids()
 	})
 
+var _last_taunt_msec: int = 0
+
+func send_chat(text: String) -> void:
+	var clean = text.strip_edges().substr(0, 60)
+	if clean == "":
+		return
+	send_json({"type": "chat", "text": clean})
+
+func send_taunt(icon: String) -> void:
+	var now = Time.get_ticks_msec()
+	if now - _last_taunt_msec < 2000:
+		return
+	_last_taunt_msec = now
+	var clean = icon.strip_edges().substr(0, 8)
+	if clean == "":
+		return
+	send_json({"type": "taunt", "icon": clean})
+
+func request_friends() -> void:
+	send_json({"type": "get_friends", "name": get_player_name()})
+
+func add_friend(friend_name: String) -> void:
+	var clean = friend_name.strip_edges().substr(0, 12)
+	if clean == "" or clean == get_player_name():
+		return
+	send_json({"type": "add_friend", "name": get_player_name(), "friend": clean})
+
+func remove_friend(friend_name: String) -> void:
+	send_json({"type": "remove_friend", "name": get_player_name(), "friend": friend_name.strip_edges()})
+
+func send_invite(to_name: String, room_code: String) -> void:
+	send_json({"type": "invite", "to": to_name.strip_edges(), "room_code": room_code})
+
 func send_json(data: Dictionary) -> void:
 	if ws and ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
 		ws.send_text(JSON.stringify(data))
@@ -386,6 +425,27 @@ func _handle_server_message(raw_msg: String) -> void:
 			var badges = json.get("badges", [])
 			if typeof(badges) == TYPE_ARRAY:
 				opponent_badges_received.emit(badges)
+
+		"chat":
+			chat_received.emit(str(json.get("text", "")), str(json.get("from", "Rakip")))
+
+		"taunt":
+			taunt_received.emit(str(json.get("icon", "")), str(json.get("from", "Rakip")))
+
+		"friends_list":
+			var friends = json.get("friends", [])
+			if typeof(friends) != TYPE_ARRAY:
+				friends = []
+			friends_received.emit(friends)
+
+		"invited":
+			invite_received.emit(str(json.get("from", "?")), str(json.get("room_code", "")))
+
+		"invite_sent":
+			invite_sent.emit(str(json.get("to", "")))
+
+		"invite_failed":
+			invite_failed.emit(str(json.get("to", "")), str(json.get("reason", "")))
 			
 		"died":
 			var score = int(json.get("score", 0))

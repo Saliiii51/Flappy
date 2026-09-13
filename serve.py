@@ -252,6 +252,71 @@ def local_top(scope: str, limit: int):
     ]
     return entries, len(board), week_champion()
 
+# --- SOSYAL: sohbet/tepkiler (throttle) + online kaydı ---
+last_chat_at = {}   # ws -> timestamp
+last_taunt_at = {}  # ws -> timestamp
+online_by_name = {}  # name -> ws (davet için)
+name_by_ws = {}      # ws -> name
+
+def _throttled(store, ws, seconds: float) -> bool:
+    import time as _time
+    now = _time.monotonic()
+    if now - store.get(ws, 0.0) < seconds:
+        return True
+    store[ws] = now
+    return False
+
+def _register_online(ws, name: str):
+    name = (name or "").strip()[:12]
+    if not name:
+        return
+    old = name_by_ws.get(ws)
+    if old and old != name and online_by_name.get(old) is ws:
+        del online_by_name[old]
+    # Aynı isimde başkası varsa son bağlanan kazanır (v1: isim tekilliği yok)
+    name_by_ws[ws] = name
+    online_by_name[name] = ws
+
+def _unregister_online(ws):
+    name = name_by_ws.pop(ws, None)
+    if name and online_by_name.get(name) is ws:
+        del online_by_name[name]
+    last_chat_at.pop(ws, None)
+    last_taunt_at.pop(ws, None)
+
+def _room_partner(websocket):
+    info = client_rooms.get(websocket)
+    if not info or info["code"] not in rooms:
+        return None, None
+    room = rooms[info["code"]]
+    partner = room["guest"] if info["role"] == "host" else room["host"]
+    my_name = room["host_name"] if info["role"] == "host" else room["guest_name"]
+    return partner, my_name
+
+# --- ARKADAŞLAR (Supabase varsa kalıcı, yoksa bellek) ---
+def _friends_get(owner: str):
+    if USE_DB:
+        rows = _db_req("GET", "/friends", {"owner": "eq." + owner, "select": "name"})
+        return sorted({r.get("name", "") for r in rows if r.get("name")})
+    return sorted(mem_friends.get(owner, set()))
+
+def _friends_add(owner: str, name: str):
+    if USE_DB:
+        _db_req("POST", "/friends", {"on_conflict": "owner,name"},
+                {"owner": owner, "name": name})
+    else:
+        mem_friends.setdefault(owner, set()).add(name)
+    return _friends_get(owner)
+
+def _friends_remove(owner: str, name: str):
+    if USE_DB:
+        _db_req("DELETE", "/friends", {"owner": "eq." + owner, "name": "eq." + name})
+    else:
+        mem_friends.get(owner, set()).discard(name)
+    return _friends_get(owner)
+
+mem_friends = {}
+
 # --- QUICK MATCH (rastgele eşleşme kuyruğu) ---
 # match_queue: [{"ws": ws, "name": str}]
 match_queue = []
@@ -334,6 +399,7 @@ async def handle_ws(websocket):
 
             if msg_type == "create_room":
                 _queue_remove(websocket)
+                _register_online(websocket, str(data.get("name", "Oyuncu 1")))
                 # Generate unique 4-digit code (e.g. 4821)
                 while True:
                     code = str(random.randint(1000, 9999))
@@ -359,6 +425,7 @@ async def handle_ws(websocket):
 
             elif msg_type == "join_room":
                 _queue_remove(websocket)
+                _register_online(websocket, str(data.get("name", "Oyuncu 2")))
                 code = str(data.get("room_code", "")).strip()
                 guest_name = str(data.get("name", "Oyuncu 2")).strip() or "Oyuncu 2"
                 if code not in rooms:
@@ -460,6 +527,7 @@ async def handle_ws(websocket):
                 except Exception:
                     continue
                 score = max(0, min(score, 9999))
+                _register_online(websocket, name)
                 try:
                     if USE_DB:
                         best, rank = await db_submit(name, score)
@@ -519,6 +587,7 @@ async def handle_ws(websocket):
                     existing["name"] = qname
                 else:
                     match_queue.append({"ws": websocket, "name": qname})
+                _register_online(websocket, qname)
                 # Ölü bağlantıları temizle
                 for entry in match_queue[:]:
                     if not _ws_alive(entry["ws"]):
@@ -573,6 +642,100 @@ async def handle_ws(websocket):
                 except Exception:
                     pass
 
+            elif msg_type == "chat":
+                partner, my_name = _room_partner(websocket)
+                if not partner:
+                    continue
+                if _throttled(last_chat_at, websocket, 1.2):
+                    continue
+                text = str(data.get("text", "")).strip()[:60]
+                if not text:
+                    continue
+                try:
+                    await partner.send(json.dumps({
+                        "type": "chat", "text": text, "from": my_name
+                    }))
+                except Exception:
+                    pass
+
+            elif msg_type == "taunt":
+                partner, my_name = _room_partner(websocket)
+                if not partner:
+                    continue
+                if _throttled(last_taunt_at, websocket, 1.5):
+                    continue
+                icon = str(data.get("icon", "")).strip()[:8]
+                if not icon:
+                    continue
+                try:
+                    await partner.send(json.dumps({
+                        "type": "taunt", "icon": icon, "from": my_name
+                    }))
+                except Exception:
+                    pass
+
+            elif msg_type in ("get_friends", "add_friend", "remove_friend"):
+                me = name_by_ws.get(websocket, "")
+                if not me:
+                    me = str(data.get("name", "")).strip()[:12]
+                    if me:
+                        _register_online(websocket, me)
+                if not me:
+                    continue
+                try:
+                    if msg_type == "add_friend":
+                        friend = str(data.get("friend", "")).strip()[:12]
+                        if friend and friend != me:
+                            _friends_add(me, friend)
+                    elif msg_type == "remove_friend":
+                        friend = str(data.get("friend", "")).strip()[:12]
+                        if friend:
+                            _friends_remove(me, friend)
+                    friends = _friends_get(me)
+                except Exception as e:
+                    print(f"[Friends] DB hatası: {e}")
+                    friends = []
+                try:
+                    await websocket.send(json.dumps({
+                        "type": "friends_list", "friends": friends
+                    }))
+                except Exception:
+                    pass
+
+            elif msg_type == "invite":
+                info = client_rooms.get(websocket)
+                if not info or info["code"] not in rooms:
+                    try:
+                        await websocket.send(json.dumps({
+                            "type": "invite_failed", "to": "", "reason": "no_room"
+                        }))
+                    except Exception:
+                        pass
+                    continue
+                code = info["code"]
+                room = rooms[code]
+                my_name = room["host_name"] if info["role"] == "host" else room["guest_name"]
+                to = str(data.get("to", "")).strip()[:12]
+                target = online_by_name.get(to) if to else None
+                if not target or not _ws_alive(target):
+                    try:
+                        await websocket.send(json.dumps({
+                            "type": "invite_failed", "to": to, "reason": "offline"
+                        }))
+                    except Exception:
+                        pass
+                    continue
+                try:
+                    await target.send(json.dumps({
+                        "type": "invited", "from": my_name, "room_code": code
+                    }))
+                    await websocket.send(json.dumps({
+                        "type": "invite_sent", "to": to
+                    }))
+                    print(f"[WebSocket] ✉️ Davet: {my_name} -> {to} (oda {code})")
+                except Exception:
+                    pass
+
             elif msg_type in ("sync", "flap", "died", "score_update", "badges"):
                 # Fast relay to the opponent
                 info = client_rooms.get(websocket)
@@ -590,6 +753,7 @@ async def handle_ws(websocket):
     finally:
         info = client_rooms.pop(websocket, None)
         _queue_remove(websocket)
+        _unregister_online(websocket)
         last_submit_at.pop(websocket, None)
         if info:
             code = info["code"]
