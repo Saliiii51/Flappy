@@ -16,6 +16,11 @@ var double_score_indicator: Label
 var multiplayer_btn: Button
 var ranks_btn: Button
 
+var menu_title: Label
+var best_badge: Label
+var start_hint: Label
+var menu_style: StyleBoxFlat
+
 var ranks_modal: Control
 var ranks_list: VBoxContainer
 var ranks_title_label: Label
@@ -108,6 +113,7 @@ func _ready() -> void:
 	_build_ranks_button()
 	_build_ranks_modal()
 	_build_weather_banner()
+	_build_main_menu()
 	NetworkManager.ranks_received.connect(_on_ranks_received)
 	_add_menu_juice()
 	_fade_in()
@@ -406,6 +412,12 @@ func show_message() -> void:
 		multiplayer_btn.visible = true
 	if ranks_btn:
 		ranks_btn.visible = true
+	if menu_title:
+		menu_title.visible = true
+	if best_badge:
+		best_badge.visible = true
+	if start_hint:
+		start_hint.visible = true
 	if score_container:
 		score_container.visible = false
 	if score_label:
@@ -438,6 +450,12 @@ func hide_message() -> void:
 		profile_btn.visible = false
 	if profile_modal:
 		profile_modal.visible = false
+	if menu_title:
+		menu_title.visible = false
+	if best_badge:
+		best_badge.visible = false
+	if start_hint:
+		start_hint.visible = false
 	update_score(0)
 
 func _update_profile_button_text() -> void:
@@ -921,3 +939,110 @@ func _fade_in() -> void:
 	var tween = create_tween()
 	tween.tween_property(fade, "color:a", 0.0, 0.4)
 	tween.tween_callback(fade.queue_free)
+
+# --- ANA MENÜ GÖRÜNÜMÜ ---
+func _menu_button_style() -> StyleBoxFlat:
+	if menu_style:
+		return menu_style
+	menu_style = StyleBoxFlat.new()
+	menu_style.set_corner_radius_all(8)
+	menu_style.bg_color = Color(0.13, 0.11, 0.18, 0.92)
+	menu_style.border_color = Color(1.0, 0.84, 0.15, 0.9)
+	menu_style.border_width_left = 2
+	menu_style.border_width_top = 2
+	menu_style.border_width_right = 2
+	menu_style.border_width_bottom = 2
+	menu_style.content_margin_left = 8.0
+	menu_style.content_margin_right = 8.0
+	return menu_style
+
+func _style_menu_button(b: Button) -> void:
+	if b == null:
+		return
+	b.add_theme_stylebox_override("normal", _menu_button_style())
+	b.add_theme_color_override("font_color", Color(1, 1, 1))
+	b.add_theme_color_override("font_hover_color", Color(1.0, 0.9, 0.4))
+	b.add_theme_color_override("font_pressed_color", Color(1.0, 0.85, 0.2))
+	b.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.7))
+	b.add_theme_constant_override("shadow_offset_x", 1)
+	b.add_theme_constant_override("shadow_offset_y", 1)
+
+func _build_main_menu() -> void:
+	_init_node_references()
+	for b in [multiplayer_btn, ranks_btn, profile_btn, prev_skin_btn, next_skin_btn]:
+		if b is Button:
+			_style_menu_button(b as Button)
+
+	if menu_title == null:
+		menu_title = Label.new()
+		menu_title.text = "FLAPPY BIRD"
+		menu_title.add_theme_font_size_override("font_size", 30)
+		menu_title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+		menu_title.add_theme_color_override("font_outline_color", Color(0.25, 0.12, 0.05))
+		menu_title.add_theme_constant_override("outline_size", 7)
+		menu_title.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
+		menu_title.add_theme_constant_override("shadow_offset_x", 2)
+		menu_title.add_theme_constant_override("shadow_offset_y", 2)
+		menu_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		menu_title.offset_left = 16.0
+		menu_title.offset_top = 40.0
+		menu_title.offset_right = 272.0
+		menu_title.offset_bottom = 74.0
+		menu_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(menu_title)
+		var bob_base_y = menu_title.position.y
+		var bob = create_tween()
+		bob.set_loops()
+		bob.tween_property(menu_title, "position:y", bob_base_y - 4.0, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		bob.tween_property(menu_title, "position:y", bob_base_y, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+	if best_badge == null:
+		best_badge = Label.new()
+		best_badge.add_theme_font_size_override("font_size", 13)
+		best_badge.add_theme_color_override("font_color", Color(1, 1, 1))
+		best_badge.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+		best_badge.add_theme_constant_override("outline_size", 4)
+		best_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		best_badge.offset_left = 16.0
+		best_badge.offset_top = 452.0
+		best_badge.offset_right = 272.0
+		best_badge.offset_bottom = 472.0
+		best_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(best_badge)
+
+	if start_hint == null:
+		start_hint = Label.new()
+		start_hint.text = "👆 DOKUN VE UÇ"
+		start_hint.add_theme_font_size_override("font_size", 13)
+		start_hint.add_theme_color_override("font_color", Color(0.6, 0.95, 1.0))
+		start_hint.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+		start_hint.add_theme_constant_override("outline_size", 4)
+		start_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		start_hint.offset_left = 16.0
+		start_hint.offset_top = 474.0
+		start_hint.offset_right = 272.0
+		start_hint.offset_bottom = 496.0
+		start_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(start_hint)
+		var blink = create_tween()
+		blink.set_loops()
+		blink.tween_property(start_hint, "modulate:a", 0.35, 0.7)
+		blink.tween_property(start_hint, "modulate:a", 1.0, 0.7)
+
+func medal_for(score: int) -> String:
+	if score >= 40:
+		return "💎"
+	elif score >= 30:
+		return "🥇"
+	elif score >= 20:
+		return "🥈"
+	elif score >= 10:
+		return "🥉"
+	return "🐥"
+
+func set_best_badge(score: int) -> void:
+	_init_node_references()
+	if best_badge == null:
+		_build_main_menu()
+	if best_badge:
+		best_badge.text = "%s EN İYİ: %d" % [medal_for(score), score]

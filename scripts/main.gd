@@ -78,6 +78,7 @@ func _ready() -> void:
 		if not ui.restart_requested.is_connected(_on_ui_restart_requested):
 			ui.restart_requested.connect(_on_ui_restart_requested)
 		ui.set_initial_skin(saved_skin)
+		ui.set_best_badge(high_score)
 	
 	if achievements and not achievements.achievement_unlocked.is_connected(_on_achievement_unlocked):
 		achievements.achievement_unlocked.connect(_on_achievement_unlocked)
