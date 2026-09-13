@@ -108,6 +108,10 @@ func _on_local_versus_pressed() -> void:
 	_play_swoosh()
 	get_tree().change_scene_to_file("res://scenes/local_versus.tscn")
 
+func _on_stickman_race_pressed() -> void:
+	_play_swoosh()
+	get_tree().change_scene_to_file("res://scenes/stickman_race.tscn")
+
 # --- ARKADAŞLAR + DAVET ---
 func _build_friends_section() -> void:
 	if friends_section or online_lobby == null:

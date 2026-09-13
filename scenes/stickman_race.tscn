@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/stickman_race.gd" id="1_race"]
+[ext_resource type="PackedScene" path="res://scenes/clouds.tscn" id="2_clouds"]
+
+[node name="StickmanRace" type="Node2D"]
+script = ExtResource("1_race")
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(144, 256)
+
+[node name="Clouds" parent="." instance=ExtResource("2_clouds")]
+
+[node name="RaceUI" type="CanvasLayer" parent="."]
