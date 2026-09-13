@@ -29,6 +29,11 @@ var ranks_tab_all: Button
 var ranks_tab_week: Button
 var champ_label: Label
 
+var missions_btn: Button
+var missions_modal: Control
+var missions_list: VBoxContainer
+var missions_title_label: Label
+
 var score_container: HBoxContainer
 var score_label: Label
 var perfect_label: Label
@@ -112,6 +117,7 @@ func _ready() -> void:
 
 	_build_ranks_button()
 	_build_ranks_modal()
+	_build_missions_modal()
 	_build_weather_banner()
 	_build_main_menu()
 	NetworkManager.ranks_received.connect(_on_ranks_received)
@@ -412,6 +418,8 @@ func show_message() -> void:
 		multiplayer_btn.visible = true
 	if ranks_btn:
 		ranks_btn.visible = true
+	if missions_btn:
+		missions_btn.visible = true
 	if menu_title:
 		menu_title.visible = true
 	if best_badge:
@@ -442,10 +450,14 @@ func hide_message() -> void:
 		multiplayer_btn.visible = false
 	if ranks_btn:
 		ranks_btn.visible = false
+	if missions_btn:
+		missions_btn.visible = false
 	if achievements_modal:
 		achievements_modal.visible = false
 	if ranks_modal:
 		ranks_modal.visible = false
+	if missions_modal:
+		missions_modal.visible = false
 	if profile_btn:
 		profile_btn.visible = false
 	if profile_modal:
@@ -634,6 +646,125 @@ func _on_game_over_panel_gui_input(event: InputEvent) -> void:
 	if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed):
 		restart_requested.emit()
 
+# --- GÖREVLER (missions) ---
+func _build_missions_modal() -> void:
+	if missions_modal:
+		return
+	missions_modal = Control.new()
+	missions_modal.set_anchors_preset(Control.PRESET_FULL_RECT)
+	missions_modal.visible = false
+	add_child(missions_modal)
+
+	var dim := ColorRect.new()
+	dim.color = Color(0.0, 0.0, 0.0, 0.65)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	missions_modal.add_child(dim)
+	dim.gui_input.connect(func(event: InputEvent):
+		if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed):
+			missions_modal.visible = false
+	)
+
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.set_corner_radius_all(8)
+	style.bg_color = Color(0.16, 0.14, 0.22, 0.97)
+	style.border_color = Color(0.4, 0.8, 1.0, 0.95)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	panel.add_theme_stylebox_override("panel", style)
+	panel.offset_left = 28.0
+	panel.offset_top = 110.0
+	panel.offset_right = 260.0
+	panel.offset_bottom = 400.0
+	missions_modal.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 10)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_right", 10)
+	margin.add_theme_constant_override("margin_bottom", 10)
+	panel.add_child(margin)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	margin.add_child(vbox)
+
+	missions_title_label = Label.new()
+	missions_title_label.add_theme_font_size_override("font_size", 14)
+	missions_title_label.add_theme_color_override("font_color", Color(0.4, 0.85, 1.0))
+	missions_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(missions_title_label)
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 175)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(scroll)
+
+	missions_list = VBoxContainer.new()
+	missions_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	missions_list.add_theme_constant_override("separation", 4)
+	scroll.add_child(missions_list)
+
+	var close_btn := Button.new()
+	close_btn.text = "KAPAT"
+	close_btn.focus_mode = Control.FOCUS_NONE
+	close_btn.pressed.connect(func(): missions_modal.visible = false)
+	vbox.add_child(close_btn)
+
+func _on_missions_pressed() -> void:
+	_init_node_references()
+	if missions_modal == null:
+		return
+	_refresh_missions_list()
+	missions_modal.visible = true
+
+func _refresh_missions_list() -> void:
+	if missions_list == null:
+		return
+	for child in missions_list.get_children():
+		child.queue_free()
+	if missions_title_label:
+		missions_title_label.text = "🎯 GÖREVLER (⭐ %d/%d)" % [MissionsManager.total_stars(), MissionsManager.stars_possible()]
+	for m in MissionsManager.MISSIONS:
+		var pid = String(m.get("id", ""))
+		var stars = MissionsManager.stars_of(m)
+		var goals = m.get("goals", [1])
+		var top = int(goals[goals.size() - 1])
+		var prog = mini(MissionsManager.progress_of(m), top)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		var icon_lbl := Label.new()
+		icon_lbl.text = String(m.get("icon", "🎯"))
+		icon_lbl.add_theme_font_size_override("font_size", 16)
+		row.add_child(icon_lbl)
+		var text_col := VBoxContainer.new()
+		text_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		text_col.add_theme_constant_override("separation", 1)
+		row.add_child(text_col)
+		var title_lbl := Label.new()
+		title_lbl.text = String(m.get("title", ""))
+		title_lbl.add_theme_font_size_override("font_size", 11)
+		if stars >= 3:
+			title_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+		else:
+			title_lbl.add_theme_color_override("font_color", Color(0.92, 0.92, 0.95))
+		text_col.add_child(title_lbl)
+		var desc_lbl := Label.new()
+		desc_lbl.text = "%s (%d/%d)" % [String(m.get("desc", "")), prog, top]
+		desc_lbl.add_theme_font_size_override("font_size", 9)
+		desc_lbl.add_theme_color_override("font_color", Color(0.65, 0.65, 0.7))
+		text_col.add_child(desc_lbl)
+		var star_lbl := Label.new()
+		var star_txt = ""
+		for i in range(3):
+			star_txt += "⭐" if i < stars else "☆"
+		star_lbl.text = star_txt
+		star_lbl.add_theme_font_size_override("font_size", 10)
+		row.add_child(star_lbl)
+		missions_list.add_child(row)
+
 # --- GLOBAL SIRALAMA (liderlik tablosu) ---
 func _build_ranks_button() -> void:
 	_init_node_references()
@@ -643,15 +774,27 @@ func _build_ranks_button() -> void:
 	if parent_ctrl == null:
 		return
 	ranks_btn = Button.new()
-	ranks_btn.text = "🏆 GLOBAL SIRALAMA"
-	ranks_btn.add_theme_font_size_override("font_size", 11)
+	ranks_btn.text = "🏆 SIRALAMA"
+	ranks_btn.add_theme_font_size_override("font_size", 10)
 	ranks_btn.focus_mode = Control.FOCUS_NONE
-	ranks_btn.offset_left = 64.0
+	ranks_btn.offset_left = 16.0
 	ranks_btn.offset_top = 421.0
-	ranks_btn.offset_right = 224.0
+	ranks_btn.offset_right = 138.0
 	ranks_btn.offset_bottom = 449.0
 	parent_ctrl.add_child(ranks_btn)
 	ranks_btn.pressed.connect(_on_ranks_pressed)
+
+	if missions_btn == null:
+		missions_btn = Button.new()
+		missions_btn.text = "🎯 GÖREV"
+		missions_btn.add_theme_font_size_override("font_size", 10)
+		missions_btn.focus_mode = Control.FOCUS_NONE
+		missions_btn.offset_left = 150.0
+		missions_btn.offset_top = 421.0
+		missions_btn.offset_right = 272.0
+		missions_btn.offset_bottom = 449.0
+		parent_ctrl.add_child(missions_btn)
+		missions_btn.pressed.connect(_on_missions_pressed)
 
 func _build_ranks_modal() -> void:
 	if ranks_modal:
@@ -916,7 +1059,7 @@ func spawn_score_popup(world_pos: Vector2, text: String, color: Color = Color.WH
 func _add_menu_juice() -> void:
 	_init_node_references()
 	var buttons: Array = [prev_skin_btn, next_skin_btn, mute_btn, achieve_menu_btn,
-		multiplayer_btn, profile_btn, restart_btn, ranks_btn]
+		multiplayer_btn, profile_btn, restart_btn, ranks_btn, missions_btn]
 	for b in buttons:
 		if b is Button:
 			_add_button_juice(b as Button)
@@ -974,7 +1117,7 @@ func _style_menu_button(b: Button) -> void:
 
 func _build_main_menu() -> void:
 	_init_node_references()
-	for b in [multiplayer_btn, ranks_btn, profile_btn, prev_skin_btn, next_skin_btn]:
+	for b in [multiplayer_btn, ranks_btn, missions_btn, profile_btn, prev_skin_btn, next_skin_btn]:
 		if b is Button:
 			_style_menu_button(b as Button)
 

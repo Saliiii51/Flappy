@@ -4,6 +4,7 @@ class_name Bird
 signal died
 signal shield_absorbed
 signal double_score_toggled(active: bool)
+signal powerup_collected(kind: String)
 
 @export var gravity: float = 900.0
 @export var jump_impulse: float = -280.0
@@ -92,6 +93,7 @@ func activate_shield() -> void:
 	has_shield = true
 	if shield_visual:
 		shield_visual.visible = true
+	powerup_collected.emit("shield")
 
 func hit_by_obstacle() -> bool:
 	if is_ghost:
@@ -111,6 +113,7 @@ func activate_double_score() -> void:
 	if star_aura:
 		star_aura.visible = true
 	double_score_toggled.emit(true)
+	powerup_collected.emit("star")
 
 func turn_into_ghost() -> void:
 	is_ghost = true

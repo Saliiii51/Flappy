@@ -18,6 +18,7 @@ config/icon="res://assets/sprites/yellowbird-midflap.png"
 [autoload]
 
 NetworkManager="*res://scripts/network_manager.gd"
+MissionsManager="*res://scripts/missions_manager.gd"
 
 [display]
 

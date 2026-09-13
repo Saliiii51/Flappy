@@ -37,6 +37,11 @@ var boss_active: bool = false
 var current_boss: Node2D = null
 var boss_level: int = 0
 
+var run_perfects: int = 0
+var run_shields: int = 0
+var run_stars: int = 0
+var run_boss_killed: bool = false
+
 var weather: Weather = Weather.NONE
 var weather_time_left: float = 0.0
 var weather_elapsed: float = 0.0
@@ -55,6 +60,8 @@ func _ready() -> void:
 	if bird:
 		if not bird.died.is_connected(_on_bird_died):
 			bird.died.connect(_on_bird_died)
+		if not bird.powerup_collected.is_connected(_on_powerup_collected):
+			bird.powerup_collected.connect(_on_powerup_collected)
 		if not bird.shield_absorbed.is_connected(_on_shield_absorbed):
 			bird.shield_absorbed.connect(_on_shield_absorbed)
 		if not bird.double_score_toggled.is_connected(_on_double_score_toggled):
@@ -82,6 +89,8 @@ func _ready() -> void:
 	
 	if achievements and not achievements.achievement_unlocked.is_connected(_on_achievement_unlocked):
 		achievements.achievement_unlocked.connect(_on_achievement_unlocked)
+	if not MissionsManager.mission_star_earned.is_connected(_on_mission_star_earned):
+		MissionsManager.mission_star_earned.connect(_on_mission_star_earned)
 
 func _process(delta: float) -> void:
 	if is_night and state == GameState.PLAYING and lightning_flash:
@@ -249,6 +258,10 @@ func _on_achievements_menu_requested() -> void:
 
 func start_game() -> void:
 	state = GameState.PLAYING
+	run_perfects = 0
+	run_shields = 0
+	run_stars = 0
+	run_boss_killed = false
 	ui.hide_message()
 	bird.start_flying()
 	audio_manager.play_wing()
@@ -271,9 +284,18 @@ func _on_pipe_spawned(pipe: PipePair) -> void:
 func _on_powerup_spawned(powerup: PowerUp) -> void:
 	pipes_container.add_child(powerup)
 
+func _on_powerup_collected(kind: String) -> void:
+	if kind == "shield":
+		run_shields += 1
+	elif kind == "star":
+		run_stars += 1
+
 func _on_shield_absorbed() -> void:
 	audio_manager.play_hit()
 	shake_camera(0.15, 3.5)
+	MissionsManager.add_shield_break()
+	if achievements:
+		achievements.unlock("shield_master")
 	if achievements:
 		achievements.unlock("shield_master")
 
@@ -289,6 +311,7 @@ func _on_perfect_score_awarded(pos: Vector2) -> void:
 	var is_double = bird.is_double_score if bird else false
 	var bonus_points = 3 if is_double else 2
 	score += bonus_points
+	run_perfects += 1
 	ui.update_score(score)
 	ui.show_perfect_indicator(pos)
 	audio_manager.play_point()
@@ -395,6 +418,7 @@ func _on_boss_health_changed(current_hp: int, max_hp: int) -> void:
 func _on_boss_defeated() -> void:
 	current_boss = null
 	boss_active = false
+	run_boss_killed = true
 	score += 10
 	ui.update_score(score)
 	ui.show_boss_defeated()
@@ -432,6 +456,14 @@ func _on_achievement_unlocked(_id: String, info: Dictionary) -> void:
 	ui.show_achievement_banner(info)
 	audio_manager.play_point()
 
+func _on_mission_star_earned(_id: String, stars: int, info: Dictionary) -> void:
+	ui.show_achievement_banner({
+		"icon": "⭐",
+		"title": "%s (%d/3)" % [String(info.get("title", "Görev")), stars],
+		"desc": String(info.get("desc", ""))
+	})
+	audio_manager.play_point()
+
 func _on_ground_hit() -> void:
 	bird.die()
 
@@ -465,6 +497,7 @@ func _on_bird_died() -> void:
 
 	# Global sıralamaya skoru gönder (bağlı değilsek sessizce atlanır)
 	NetworkManager.submit_rank_score(score)
+	MissionsManager.report_run(score, run_perfects, run_shields, run_stars, run_boss_killed)
 
 	ui.show_game_over(score, high_score, is_new_record)
 	
