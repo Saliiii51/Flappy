@@ -314,6 +314,7 @@ offset_top = 104.0
 offset_right = 219.0
 offset_bottom = 138.0
 texture = ExtResource("3_gameover_tex")
+expand_mode = 1
 
 [node name="Card" type="PanelContainer" parent="GameOverPanel"]
 layout_mode = 0
