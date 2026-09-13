@@ -9,6 +9,12 @@ window.FlappyVoice = (function () {
 	"use strict";
 
 	var STUN = [{ urls: "stun:stun.l.google.com:19302" }];
+	// TURN yedeği (simetrik NAT / mobil veri için). Ücretsiz OpenRelay.
+	var TURN = [
+		{ urls: "turn:openrelay.metered.ca:80", username: "openrelayproject", credential: "openrelayprojectpassword" },
+		{ urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayprojectpassword" }
+	];
+	var ICE_SERVERS = STUN.concat(TURN);
 
 	var state = "off";
 	var pc = null;
@@ -119,7 +125,7 @@ window.FlappyVoice = (function () {
 		}).then(function (s) {
 			stream = s;
 			stream.getTracks().forEach(function (t) { t.enabled = !muted; });
-			pc = new RTCPeerConnection({ iceServers: STUN });
+			pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 			stream.getTracks().forEach(function (t) { pc.addTrack(t, stream); });
 			pc.onicecandidate = function (ev) {
 				if (ev.candidate) {
@@ -175,10 +181,24 @@ window.FlappyVoice = (function () {
 		}
 	}
 
+	// Konsoldan tanı için: FlappyVoice.debug()
+	function debug() {
+		var info = { state: state, room: room, isCaller: isCaller, hasPC: !!pc, hasStream: !!stream };
+		if (pc) {
+			try {
+				info.conn = pc.connectionState || null;
+				info.ice = pc.iceConnectionState || null;
+				info.signaling = pc.signalingState || null;
+			} catch (e) {}
+		}
+		return info;
+	}
+
 	var api = {
 		start: start,
 		stop: stop,
 		setMuted: setMuted,
+		debug: debug,
 		_handleSignal: handleSignal
 	};
 	Object.defineProperty(api, "state", { get: function () { return state; } });
