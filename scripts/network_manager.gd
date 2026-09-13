@@ -153,15 +153,14 @@ func _ready() -> void:
 	connect_to_server()
 
 # Mobil web'de sistem emoji fontu yok -> gömülü NotoColorEmoji'yi
-# tüm metinlere global fallback yap (tofu kutuları biter).
+# varsayılan tema fontu + global fallback olarak bağla.
 func _setup_emoji_font() -> void:
-	if not ResourceLoader.exists("res://assets/fonts/NotoColorEmoji.ttf"):
+	if not ResourceLoader.exists("res://assets/fonts/EmojiDefault.tres"):
 		return
-	var emoji_font = load("res://assets/fonts/NotoColorEmoji.ttf") as Font
-	if emoji_font == null:
+	var variation = load("res://assets/fonts/EmojiDefault.tres") as Font
+	if variation == null:
 		return
-	var variation := FontVariation.new()
-	variation.fallbacks = [emoji_font]
+	ThemeDB.get_default_theme().default_font = variation
 	ThemeDB.fallback_font = variation
 
 func _process(_delta: float) -> void:
